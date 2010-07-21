@@ -1,0 +1,5 @@
+bitcoin (0.3.2~dfsg-1) UNRELEASED; urgency=low
+
+  * Initial release. Closes: bug#578157.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Wed, 21 Jul 2010 19:28:04 +0200

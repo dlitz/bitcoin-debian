@@ -1,0 +1,27 @@
+Source: bitcoin
+Section: utils
+Priority: optional
+Maintainer: Jonas Smedegaard <dr@jones.dk>
+Build-Depends: cdbs (>= 0.4.70~),
+ debhelper (>= 6),
+ devscripts (>= 2.10.7~),
+ dh-buildinfo,
+ libwxgtk2.8-dev,
+ libboost-system-dev,
+ libdb-dev,
+ libdb4.8++-dev | libdb++-dev,
+ libssl-dev
+Standards-Version: 3.9.0
+Homepage: http://www.bitcoin.org/
+Vcs-Git: git://git.debian.org/git/collab-maint/bitcoin
+Vcs-Browser: http://git.debian.org/?p=collab-maint/bitcoin.git;a=summary
+
+Package: bitcoin
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: peer-to-peer network based anonymous digital currency
+ Bitcoin is a free open source peer-to-peer electronic cash system that
+ is completely decentralized, without the need for a central server or
+ trusted parties.  Users hold the crypto keys to their own money and
+ transact directly with each other, with the help of a P2P network to
+ check for double-spending.

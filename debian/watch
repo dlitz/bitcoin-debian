@@ -1,0 +1,5 @@
+# Run the "uscan" command to check for upstream updates and more.
+version=3
+# use qa.debian.org redirector; see man uscan
+opts=uversionmangle=s/\-linux//,dversionmangle=s/~dfsg\d*// \
+ http://sf.net/bitcoin/bitcoin-(\d.*)-linux\.tar\.gz debian

@@ -1,0 +1,46 @@
+#!/usr/bin/make -f
+# -*- mode: makefile; coding: utf-8 -*-
+# Copyright © 2010 Jonas Smedegaard <dr@jones.dk>
+# Description: Main Debian packaging script for Bitcoin
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation; either version 2, or (at
+# your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+include /usr/share/cdbs/1/rules/upstream-tarball.mk
+include /usr/share/cdbs/1/class/makefile.mk
+include /usr/share/cdbs/1/rules/debhelper.mk
+include /usr/share/cdbs/1/rules/utils.mk
+
+DEB_UPSTREAM_URL = http://downloads.sourceforge.net/sourceforge/bitcoin
+DEB_UPSTREAM_TARBALL_BASENAME_MANGLE = s/$$/-linux/
+DEB_UPSTREAM_TARBALL_SRCDIR = $(DEB_UPSTREAM_PACKAGE)-$(DEB_UPSTREAM_TARBALL_VERSION)
+
+DEB_UPSTREAM_TARBALL_MD5 = 4479e1c69d2faddb64d25b8c7d30a5c6
+
+# source-less binary
+DEB_UPSTREAM_REPACKAGE_EXCLUDES += ./bin/
+
+# Silence .ico and .mo files in addition to the default debian files
+DEB_COPYRIGHT_CHECK_IGNORE_REGEX = ^./src/rc/bitcoin.ico|./locale/.*/LC_MESSAGES/.*.mo|\./debian/(changelog|copyright(|_hints|_newhints))$
+
+DEB_BUILDDIR = src
+
+DEB_MAKE_MAKEFILE = makefile.unix
+
+# upstream bogusly use CFLAGS for C++
+wx-cxxflags := $(shell wx-config --cxxflags)
+CFLAGS += $(wx-cxxflags)
+
+CFLAGS += -Wno-invalid-offsetof -Wformat
+
+CDBS_BUILD_DEPENDS += , libwxgtk2.8-dev, libboost-system-dev, libdb-dev, libdb4.8++-dev | libdb++-dev, libssl-dev

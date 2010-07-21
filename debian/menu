@@ -1,0 +1,2 @@
+?package(bitcoin):needs="X11" section="Applications/Utils"\
+  title="Bitcoin" command="/usr/bin/bitcoin"
