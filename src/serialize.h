@@ -2,8 +2,10 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
 
+#include <string>
 #include <vector>
 #include <map>
+#include <set>
 #include <boost/type_traits/is_fundamental.hpp>
 #if defined(_MSC_VER) || defined(__BORLANDC__)
 typedef __int64  int64;
@@ -18,9 +20,11 @@ typedef unsigned long long  uint64;
 class CScript;
 class CDataStream;
 class CAutoFile;
+static const unsigned int MAX_SIZE = 0x02000000;
 
-static const int VERSION = 302;
+static const int VERSION = 312;
 static const char* pszSubVer = "";
+
 
 
 
@@ -80,6 +84,13 @@ enum
     }
 
 #define READWRITE(obj)      (nSerSize += ::SerReadWrite(s, (obj), nType, nVersion, ser_action))
+
+#define READWRITEVER(obj)       \
+    do {                        \
+        READWRITE((obj));       \
+        if ((obj) == 10300)     \
+            (obj) = 300;        \
+    } while (false)
 
 
 
@@ -217,7 +228,7 @@ uint64 ReadCompactSize(Stream& is)
         READDATA(is, nSize);
         nSizeRet = nSize;
     }
-    if (nSizeRet > (uint64)INT_MAX)
+    if (nSizeRet > (uint64)MAX_SIZE)
         throw std::ios_base::failure("ReadCompactSize() : size too large");
     return nSizeRet;
 }

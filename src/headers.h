@@ -18,14 +18,23 @@
 #define _WIN32_IE 0x0400
 #define WIN32_LEAN_AND_MEAN 1
 #define __STDC_LIMIT_MACROS // to enable UINT64_MAX from stdint.h
+#if (defined(__unix__) || defined(unix)) && !defined(USG)
+#include <sys/param.h>  // to get BSD define
+#endif
+#ifdef __WXMAC_OSX__
+#ifndef BSD
+#define BSD 1
+#endif
+#endif
+#ifdef GUI
 #include <wx/wx.h>
 #include <wx/stdpaths.h>
 #include <wx/snglinst.h>
-#if wxUSE_GUI
 #include <wx/utils.h>
 #include <wx/clipbrd.h>
 #include <wx/taskbar.h>
 #endif
+#include <openssl/buffer.h>
 #include <openssl/ecdsa.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -60,10 +69,14 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/thread.hpp>
 #include <boost/interprocess/sync/interprocess_mutex.hpp>
 #include <boost/interprocess/sync/interprocess_recursive_mutex.hpp>
 #include <boost/date_time/gregorian/gregorian_types.hpp>
 #include <boost/date_time/posix_time/posix_time_types.hpp>
+#include <boost/config.hpp>
+#include <boost/program_options/detail/config_file.hpp>
+#include <boost/program_options/parsers.hpp>
 
 #ifdef __WXMSW__
 #include <windows.h>
@@ -78,14 +91,16 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
 #include <errno.h>
 #include <net/if.h>
 #include <ifaddrs.h>
+#include <fcntl.h>
 #endif
-#ifdef __BSD__
+#ifdef BSD
 #include <netinet/in.h>
 #endif
 
@@ -107,10 +122,12 @@ using namespace boost;
 #include "irc.h"
 #include "main.h"
 #include "rpc.h"
-#if wxUSE_GUI
+#ifdef GUI
 #include "uibase.h"
-#endif
 #include "ui.h"
+#else
+#include "noui.h"
+#endif
 #include "init.h"
 
 #include "xpm/addressbook16.xpm"

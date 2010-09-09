@@ -16,7 +16,7 @@ extern map<string, string> mapAddressBook;
 extern CCriticalSection cs_mapAddressBook;
 extern vector<unsigned char> vchDefaultKey;
 extern bool fClient;
-
+extern int nBestHeight;
 
 
 extern unsigned int nWalletDBUpdated;
@@ -210,7 +210,7 @@ public:
         if (!pdb)
             return false;
         DbTxn* ptxn = NULL;
-        int ret = dbenv.txn_begin(GetTxn(), &ptxn, 0);
+        int ret = dbenv.txn_begin(GetTxn(), &ptxn, DB_TXN_NOSYNC);
         if (!ptxn || ret != 0)
             return false;
         vTxn.push_back(ptxn);
@@ -280,6 +280,8 @@ public:
     bool EraseBlockIndex(uint256 hash);
     bool ReadHashBestChain(uint256& hashBestChain);
     bool WriteHashBestChain(uint256 hashBestChain);
+    bool ReadBestInvalidWork(CBigNum& bnBestInvalidWork);
+    bool WriteBestInvalidWork(CBigNum bnBestInvalidWork);
     bool LoadBlockIndex();
 };
 
@@ -397,6 +399,7 @@ public:
 };
 
 bool LoadWallet(bool& fFirstRunRet);
+void BackupWallet(const string& strDest);
 
 inline bool SetAddressBookName(const string& strAddress, const string& strName)
 {

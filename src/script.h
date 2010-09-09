@@ -136,18 +136,25 @@ enum opcodetype
     OP_CHECKMULTISIG,
     OP_CHECKMULTISIGVERIFY,
 
+    // expansion
+    OP_NOP1,
+    OP_NOP2,
+    OP_NOP3,
+    OP_NOP4,
+    OP_NOP5,
+    OP_NOP6,
+    OP_NOP7,
+    OP_NOP8,
+    OP_NOP9,
+    OP_NOP10,
 
-    // multi-byte opcodes
-    OP_SINGLEBYTE_END = 0xF0,
-    OP_DOUBLEBYTE_BEGIN = 0xF000,
+
 
     // template matching params
-    OP_PUBKEY,
-    OP_PUBKEYHASH,
+    OP_PUBKEYHASH = 0xfd,
+    OP_PUBKEY = 0xfe,
 
-
-
-    OP_INVALIDOPCODE = 0xFFFF,
+    OP_INVALIDOPCODE = 0xff,
 };
 
 
@@ -276,19 +283,27 @@ inline const char* GetOpName(opcodetype opcode)
     case OP_CHECKMULTISIG          : return "OP_CHECKMULTISIG";
     case OP_CHECKMULTISIGVERIFY    : return "OP_CHECKMULTISIGVERIFY";
 
+    // expanson
+    case OP_NOP1                   : return "OP_NOP1";
+    case OP_NOP2                   : return "OP_NOP2";
+    case OP_NOP3                   : return "OP_NOP3";
+    case OP_NOP4                   : return "OP_NOP4";
+    case OP_NOP5                   : return "OP_NOP5";
+    case OP_NOP6                   : return "OP_NOP6";
+    case OP_NOP7                   : return "OP_NOP7";
+    case OP_NOP8                   : return "OP_NOP8";
+    case OP_NOP9                   : return "OP_NOP9";
+    case OP_NOP10                  : return "OP_NOP10";
 
 
-    // multi-byte opcodes
-    case OP_SINGLEBYTE_END         : return "OP_SINGLEBYTE_END";
-    case OP_DOUBLEBYTE_BEGIN       : return "OP_DOUBLEBYTE_BEGIN";
-    case OP_PUBKEY                 : return "OP_PUBKEY";
+
+    // template matching params
     case OP_PUBKEYHASH             : return "OP_PUBKEYHASH";
-
-
+    case OP_PUBKEY                 : return "OP_PUBKEY";
 
     case OP_INVALIDOPCODE          : return "OP_INVALIDOPCODE";
     default:
-        return "UNKNOWN_OPCODE";
+        return "OP_UNKNOWN";
     }
 };
 
@@ -300,8 +315,7 @@ inline string ValueString(const vector<unsigned char>& vch)
     if (vch.size() <= 4)
         return strprintf("%d", CBigNum(vch).getint());
     else
-        return HexNumStr(vch.begin(), vch.end());
-        //return string("(") + HexStr(vch.begin(), vch.end()) + string(")");
+        return HexStr(vch);
 }
 
 inline string StackString(const vector<vector<unsigned char> >& vStack)
@@ -338,12 +352,12 @@ protected:
             CBigNum bn(n);
             *this << bn.getvch();
         }
-        return (*this);
+        return *this;
     }
 
     CScript& push_uint64(uint64 n)
     {
-        if (n == -1 || (n >= 1 && n <= 16))
+        if (n >= 1 && n <= 16)
         {
             push_back(n + (OP_1 - 1));
         }
@@ -352,7 +366,7 @@ protected:
             CBigNum bn(n);
             *this << bn.getvch();
         }
-        return (*this);
+        return *this;
     }
 
 public:
@@ -373,7 +387,7 @@ public:
     {
         CScript ret = a;
         ret += b;
-        return (ret);
+        return ret;
     }
 
 
@@ -394,50 +408,43 @@ public:
     explicit CScript(const vector<unsigned char>& b) { operator<<(b); }
 
 
-    CScript& operator<<(char b)           { return (push_int64(b)); }
-    CScript& operator<<(short b)          { return (push_int64(b)); }
-    CScript& operator<<(int b)            { return (push_int64(b)); }
-    CScript& operator<<(long b)           { return (push_int64(b)); }
-    CScript& operator<<(int64 b)          { return (push_int64(b)); }
-    CScript& operator<<(unsigned char b)  { return (push_uint64(b)); }
-    CScript& operator<<(unsigned int b)   { return (push_uint64(b)); }
-    CScript& operator<<(unsigned short b) { return (push_uint64(b)); }
-    CScript& operator<<(unsigned long b)  { return (push_uint64(b)); }
-    CScript& operator<<(uint64 b)         { return (push_uint64(b)); }
+    CScript& operator<<(char b)           { return push_int64(b); }
+    CScript& operator<<(short b)          { return push_int64(b); }
+    CScript& operator<<(int b)            { return push_int64(b); }
+    CScript& operator<<(long b)           { return push_int64(b); }
+    CScript& operator<<(int64 b)          { return push_int64(b); }
+    CScript& operator<<(unsigned char b)  { return push_uint64(b); }
+    CScript& operator<<(unsigned int b)   { return push_uint64(b); }
+    CScript& operator<<(unsigned short b) { return push_uint64(b); }
+    CScript& operator<<(unsigned long b)  { return push_uint64(b); }
+    CScript& operator<<(uint64 b)         { return push_uint64(b); }
 
     CScript& operator<<(opcodetype opcode)
     {
-        if (opcode <= OP_SINGLEBYTE_END)
-        {
-            insert(end(), (unsigned char)opcode);
-        }
-        else
-        {
-            assert(opcode >= OP_DOUBLEBYTE_BEGIN);
-            insert(end(), (unsigned char)(opcode >> 8));
-            insert(end(), (unsigned char)(opcode & 0xFF));
-        }
-        return (*this);
+        if (opcode < 0 || opcode > 0xff)
+            throw runtime_error("CScript::operator<<() : invalid opcode");
+        insert(end(), (unsigned char)opcode);
+        return *this;
     }
 
     CScript& operator<<(const uint160& b)
     {
         insert(end(), sizeof(b));
         insert(end(), (unsigned char*)&b, (unsigned char*)&b + sizeof(b));
-        return (*this);
+        return *this;
     }
 
     CScript& operator<<(const uint256& b)
     {
         insert(end(), sizeof(b));
         insert(end(), (unsigned char*)&b, (unsigned char*)&b + sizeof(b));
-        return (*this);
+        return *this;
     }
 
     CScript& operator<<(const CBigNum& b)
     {
         *this << b.getvch();
-        return (*this);
+        return *this;
     }
 
     CScript& operator<<(const vector<unsigned char>& b)
@@ -451,14 +458,20 @@ public:
             insert(end(), OP_PUSHDATA1);
             insert(end(), (unsigned char)b.size());
         }
-        else
+        else if (b.size() <= 0xffff)
         {
             insert(end(), OP_PUSHDATA2);
             unsigned short nSize = b.size();
             insert(end(), (unsigned char*)&nSize, (unsigned char*)&nSize + sizeof(nSize));
         }
+        else
+        {
+            insert(end(), OP_PUSHDATA4);
+            unsigned int nSize = b.size();
+            insert(end(), (unsigned char*)&nSize, (unsigned char*)&nSize + sizeof(nSize));
+        }
         insert(end(), b.begin(), b.end());
-        return (*this);
+        return *this;
     }
 
     CScript& operator<<(const CScript& b)
@@ -466,7 +479,7 @@ public:
         // I'm not sure if this should push the script or concatenate scripts.
         // If there's ever a use for pushing a script onto a script, delete this member fn
         assert(("warning: pushing a CScript onto a CScript with << is probably not intended, use + to concatenate", false));
-        return (*this);
+        return *this;
     }
 
 
@@ -474,41 +487,59 @@ public:
     {
          // Wrapper so it can be called with either iterator or const_iterator
          const_iterator pc2 = pc;
-         bool fRet = GetOp(pc2, opcodeRet, vchRet);
+         bool fRet = GetOp2(pc2, opcodeRet, &vchRet);
+         pc = begin() + (pc2 - begin());
+         return fRet;
+    }
+
+    bool GetOp(iterator& pc, opcodetype& opcodeRet)
+    {
+         const_iterator pc2 = pc;
+         bool fRet = GetOp2(pc2, opcodeRet, NULL);
          pc = begin() + (pc2 - begin());
          return fRet;
     }
 
     bool GetOp(const_iterator& pc, opcodetype& opcodeRet, vector<unsigned char>& vchRet) const
     {
+        return GetOp2(pc, opcodeRet, &vchRet);
+    }
+
+    bool GetOp(const_iterator& pc, opcodetype& opcodeRet) const
+    {
+        return GetOp2(pc, opcodeRet, NULL);
+    }
+
+    bool GetOp2(const_iterator& pc, opcodetype& opcodeRet, vector<unsigned char>* pvchRet) const
+    {
         opcodeRet = OP_INVALIDOPCODE;
-        vchRet.clear();
+        if (pvchRet)
+            pvchRet->clear();
         if (pc >= end())
             return false;
 
         // Read instruction
+        if (end() - pc < 1)
+            return false;
         unsigned int opcode = *pc++;
-        if (opcode >= OP_SINGLEBYTE_END)
-        {
-            if (pc + 1 > end())
-                return false;
-            opcode <<= 8;
-            opcode |= *pc++;
-        }
 
         // Immediate operand
         if (opcode <= OP_PUSHDATA4)
         {
-            unsigned int nSize = opcode;
-            if (opcode == OP_PUSHDATA1)
+            unsigned int nSize;
+            if (opcode < OP_PUSHDATA1)
             {
-                if (pc + 1 > end())
+                nSize = opcode;
+            }
+            else if (opcode == OP_PUSHDATA1)
+            {
+                if (end() - pc < 1)
                     return false;
                 nSize = *pc++;
             }
             else if (opcode == OP_PUSHDATA2)
             {
-                if (pc + 2 > end())
+                if (end() - pc < 2)
                     return false;
                 nSize = 0;
                 memcpy(&nSize, &pc[0], 2);
@@ -516,14 +547,15 @@ public:
             }
             else if (opcode == OP_PUSHDATA4)
             {
-                if (pc + 4 > end())
+                if (end() - pc < 4)
                     return false;
                 memcpy(&nSize, &pc[0], 4);
                 pc += 4;
             }
-            if (pc + nSize > end())
+            if (end() - pc < nSize)
                 return false;
-            vchRet.assign(pc, pc + nSize);
+            if (pvchRet)
+                pvchRet->assign(pc, pc + nSize);
             pc += nSize;
         }
 
@@ -534,20 +566,34 @@ public:
 
     void FindAndDelete(const CScript& b)
     {
+        if (b.empty())
+            return;
         iterator pc = begin();
         opcodetype opcode;
-        vector<unsigned char> vchPushValue;
-        int count = 0;
         do
         {
             while (end() - pc >= b.size() && memcmp(&pc[0], &b[0], b.size()) == 0)
-            {
                 erase(pc, pc + b.size());
-                count++;
-            }
         }
-        while (GetOp(pc, opcode, vchPushValue));
-        //printf("FindAndDeleted deleted %d items\n", count); /// debug
+        while (GetOp(pc, opcode));
+    }
+
+
+    int GetSigOpCount() const
+    {
+        int n = 0;
+        const_iterator pc = begin();
+        while (pc < end())
+        {
+            opcodetype opcode;
+            if (!GetOp(pc, opcode))
+                break;
+            if (opcode == OP_CHECKSIG || opcode == OP_CHECKSIGVERIFY)
+                n++;
+            else if (opcode == OP_CHECKMULTISIG || opcode == OP_CHECKMULTISIGVERIFY)
+                n += 20;
+        }
+        return n;
     }
 
 
@@ -598,7 +644,7 @@ public:
 
     void PrintHex() const
     {
-        printf("CScript(%s)\n", HexStr(begin(), end()).c_str());
+        printf("CScript(%s)\n", HexStr(begin(), end(), true).c_str());
     }
 
     string ToString() const
@@ -606,12 +652,17 @@ public:
         string str;
         opcodetype opcode;
         vector<unsigned char> vch;
-        const_iterator it = begin();
-        while (GetOp(it, opcode, vch))
+        const_iterator pc = begin();
+        while (pc < end())
         {
             if (!str.empty())
                 str += " ";
-            if (opcode <= OP_PUSHDATA4)
+            if (!GetOp(pc, opcode, vch))
+            {
+                str += "[error]";
+                return str;
+            }
+            if (0 <= opcode && opcode <= OP_PUSHDATA4)
                 str += ValueString(vch);
             else
                 str += GetOpName(opcode);
@@ -632,8 +683,6 @@ public:
 
 
 
-bool EvalScript(const CScript& script, const CTransaction& txTo, unsigned int nIn, int nHashType=0,
-                vector<vector<unsigned char> >* pvStackRet=NULL);
 uint256 SignatureHash(CScript scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType);
 bool IsMine(const CScript& scriptPubKey);
 bool ExtractPubKey(const CScript& scriptPubKey, bool fMineOnly, vector<unsigned char>& vchPubKeyRet);

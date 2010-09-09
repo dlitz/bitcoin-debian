@@ -14,12 +14,13 @@ class CBlockIndex;
 class CWalletTx;
 class CKeyItem;
 
-static const unsigned int MAX_SIZE = 0x02000000;
 static const unsigned int MAX_BLOCK_SIZE = 1000000;
+static const int MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50;
 static const int64 COIN = 100000000;
 static const int64 CENT = 1000000;
+static const int64 MAX_MONEY = 21000000 * COIN;
+inline bool MoneyRange(int64 nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 static const int COINBASE_MATURITY = 100;
-
 static const CBigNum bnProofOfWorkLimit(~uint256(0) >> 32);
 
 
@@ -32,6 +33,8 @@ extern map<uint256, CBlockIndex*> mapBlockIndex;
 extern const uint256 hashGenesisBlock;
 extern CBlockIndex* pindexGenesisBlock;
 extern int nBestHeight;
+extern CBigNum bnBestChainWork;
+extern CBigNum bnBestInvalidWork;
 extern uint256 hashBestChain;
 extern CBlockIndex* pindexBest;
 extern unsigned int nTransactionsUpdated;
@@ -40,6 +43,8 @@ extern CCriticalSection cs_mapRequestCount;
 extern map<string, string> mapAddressBook;
 extern CCriticalSection cs_mapAddressBook;
 extern vector<unsigned char> vchDefaultKey;
+extern double dHashesPerSec;
+extern int64 nHPSTimerStart;
 
 // Settings
 extern int fGenerateBitcoins;
@@ -56,7 +61,7 @@ extern int fMinimizeOnClose;
 
 
 
-bool CheckDiskSpace(int64 nAdditionalBytes=0);
+bool CheckDiskSpace(uint64 nAdditionalBytes=0);
 FILE* OpenBlockFile(unsigned int nFile, unsigned int nBlockPos, const char* pszMode="rb");
 FILE* AppendBlockFile(unsigned int& nFileRet);
 bool AddKey(const CKey& key);
@@ -78,6 +83,9 @@ string SendMoneyToBitcoinAddress(string strAddress, int64 nValue, CWalletTx& wtx
 void GenerateBitcoins(bool fGenerate);
 void ThreadBitcoinMiner(void* parg);
 void BitcoinMiner();
+bool CheckProofOfWork(uint256 hash, unsigned int nBits);
+bool IsInitialBlockDownload();
+string GetWarnings(string strFor);
 
 
 
@@ -259,7 +267,7 @@ public:
         str += strprintf("CTxIn(");
         str += prevout.ToString();
         if (prevout.IsNull())
-            str += strprintf(", coinbase %s", HexStr(scriptSig.begin(), scriptSig.end(), false).c_str());
+            str += strprintf(", coinbase %s", HexStr(scriptSig).c_str());
         else
             str += strprintf(", scriptSig=%s", scriptSig.ToString().substr(0,24).c_str());
         if (nSequence != UINT_MAX)
@@ -290,7 +298,6 @@ public:
     int64 nValue;
     CScript scriptPubKey;
 
-public:
     CTxOut()
     {
         SetNull();
@@ -331,6 +338,8 @@ public:
 
     int64 GetCredit() const
     {
+        if (!MoneyRange(nValue))
+            throw runtime_error("CTxOut::GetCredit() : value out of range");
         if (IsMine())
             return nValue;
         return 0;
@@ -408,15 +417,16 @@ public:
         return SerializeHash(*this);
     }
 
-    bool IsFinal(int64 nBlockTime=0) const
+    bool IsFinal(int nBlockHeight=0, int64 nBlockTime=0) const
     {
-        // Time based nLockTime implemented in 0.1.6,
-        // do not use time based until most 0.1.5 nodes have upgraded.
+        // Time based nLockTime implemented in 0.1.6
         if (nLockTime == 0)
             return true;
+        if (nBlockHeight == 0)
+            nBlockHeight = nBestHeight;
         if (nBlockTime == 0)
             nBlockTime = GetAdjustedTime();
-        if (nLockTime < (nLockTime < 500000000 ? nBestHeight : nBlockTime))
+        if ((int64)nLockTime < (nLockTime < 500000000 ? (int64)nBlockHeight : nBlockTime))
             return true;
         foreach(const CTxIn& txin, vin)
             if (!txin.IsFinal())
@@ -464,10 +474,22 @@ public:
         if (vin.empty() || vout.empty())
             return error("CTransaction::CheckTransaction() : vin or vout empty");
 
-        // Check for negative values
+        // Size limits
+        if (::GetSerializeSize(*this, SER_NETWORK) > MAX_SIZE)
+            return error("CTransaction::CheckTransaction() : size limits failed");
+
+        // Check for negative or overflow output values
+        int64 nValueOut = 0;
         foreach(const CTxOut& txout, vout)
+        {
             if (txout.nValue < 0)
                 return error("CTransaction::CheckTransaction() : txout.nValue negative");
+            if (txout.nValue > MAX_MONEY)
+                return error("CTransaction::CheckTransaction() : txout.nValue too high");
+            nValueOut += txout.nValue;
+            if (!MoneyRange(nValueOut))
+                return error("CTransaction::CheckTransaction() : txout total out of range");
+        }
 
         if (IsCoinBase())
         {
@@ -484,6 +506,16 @@ public:
         return true;
     }
 
+    int GetSigOpCount() const
+    {
+        int n = 0;
+        foreach(const CTxIn& txin, vin)
+            n += txin.scriptSig.GetSigOpCount();
+        foreach(const CTxOut& txout, vout)
+            n += txout.scriptPubKey.GetSigOpCount();
+        return n;
+    }
+
     bool IsMine() const
     {
         foreach(const CTxOut& txout, vout)
@@ -496,7 +528,11 @@ public:
     {
         int64 nDebit = 0;
         foreach(const CTxIn& txin, vin)
+        {
             nDebit += txin.GetDebit();
+            if (!MoneyRange(nDebit))
+                throw runtime_error("CTransaction::GetDebit() : value out of range");
+        }
         return nDebit;
     }
 
@@ -504,7 +540,11 @@ public:
     {
         int64 nCredit = 0;
         foreach(const CTxOut& txout, vout)
+        {
             nCredit += txout.GetCredit();
+            if (!MoneyRange(nCredit))
+                throw runtime_error("CTransaction::GetCredit() : value out of range");
+        }
         return nCredit;
     }
 
@@ -513,9 +553,9 @@ public:
         int64 nValueOut = 0;
         foreach(const CTxOut& txout, vout)
         {
-            if (txout.nValue < 0)
-                throw runtime_error("CTransaction::GetValueOut() : negative value");
             nValueOut += txout.nValue;
+            if (!MoneyRange(txout.nValue) || !MoneyRange(nValueOut))
+                throw runtime_error("CTransaction::GetValueOut() : value out of range");
         }
         return nValueOut;
     }
@@ -541,9 +581,14 @@ public:
                 if (txout.nValue < CENT)
                     nMinFee = CENT;
 
+        // Raise the price as the block approaches full
+        if (MAX_BLOCK_SIZE/2 <= nBlockSize && nBlockSize < MAX_BLOCK_SIZE)
+            nMinFee *= MAX_BLOCK_SIZE / (MAX_BLOCK_SIZE - nBlockSize);
+        if (!MoneyRange(nMinFee))
+            nMinFee = MAX_MONEY;
+
         return nMinFee;
     }
-
 
 
     bool ReadFromDisk(CDiskTxPos pos, FILE** pfileRet=NULL)
@@ -606,19 +651,20 @@ public:
 
 
     bool DisconnectInputs(CTxDB& txdb);
-    bool ConnectInputs(CTxDB& txdb, map<uint256, CTxIndex>& mapTestPool, CDiskTxPos posThisTx, int nHeight, int64& nFees, bool fBlock, bool fMiner, int64 nMinFee=0);
+    bool ConnectInputs(CTxDB& txdb, map<uint256, CTxIndex>& mapTestPool, CDiskTxPos posThisTx,
+                       CBlockIndex* pindexBlock, int64& nFees, bool fBlock, bool fMiner, int64 nMinFee=0);
     bool ClientConnectInputs();
 
-    bool AcceptTransaction(CTxDB& txdb, bool fCheckInputs=true, bool* pfMissingInputs=NULL);
+    bool AcceptToMemoryPool(CTxDB& txdb, bool fCheckInputs=true, bool* pfMissingInputs=NULL);
 
-    bool AcceptTransaction(bool fCheckInputs=true, bool* pfMissingInputs=NULL)
+    bool AcceptToMemoryPool(bool fCheckInputs=true, bool* pfMissingInputs=NULL)
     {
         CTxDB txdb("r");
-        return AcceptTransaction(txdb, fCheckInputs, pfMissingInputs);
+        return AcceptToMemoryPool(txdb, fCheckInputs, pfMissingInputs);
     }
 
 protected:
-    bool AddToMemoryPool();
+    bool AddToMemoryPoolUnchecked();
 public:
     bool RemoveFromMemoryPool();
 };
@@ -691,8 +737,8 @@ public:
     int GetDepthInMainChain() const { int nHeight; return GetDepthInMainChain(nHeight); }
     bool IsInMainChain() const { return GetDepthInMainChain() > 0; }
     int GetBlocksToMaturity() const;
-    bool AcceptTransaction(CTxDB& txdb, bool fCheckInputs=true);
-    bool AcceptTransaction() { CTxDB txdb("r"); return AcceptTransaction(txdb); }
+    bool AcceptToMemoryPool(CTxDB& txdb, bool fCheckInputs=true);
+    bool AcceptToMemoryPool() { CTxDB txdb("r"); return AcceptToMemoryPool(txdb); }
 };
 
 
@@ -822,12 +868,8 @@ public:
 
     friend bool operator==(const CTxIndex& a, const CTxIndex& b)
     {
-        if (a.pos != b.pos || a.vSpent.size() != b.vSpent.size())
-            return false;
-        for (int i = 0; i < a.vSpent.size(); i++)
-            if (a.vSpent[i] != b.vSpent[i])
-                return false;
-        return true;
+        return (a.pos    == b.pos &&
+                a.vSpent == b.vSpent);
     }
 
     friend bool operator!=(const CTxIndex& a, const CTxIndex& b)
@@ -913,6 +955,19 @@ public:
         return Hash(BEGIN(nVersion), END(nNonce));
     }
 
+    int64 GetBlockTime() const
+    {
+        return (int64)nTime;
+    }
+
+    int GetSigOpCount() const
+    {
+        int n = 0;
+        foreach(const CTransaction& tx, vtx)
+            n += tx.GetSigOpCount();
+        return n;
+    }
+
 
     uint256 BuildMerkleTree() const
     {
@@ -986,11 +1041,14 @@ public:
 
         // Flush stdio buffers and commit to disk before returning
         fflush(fileout);
+        if (!IsInitialBlockDownload() || (nBestHeight+1) % 500 == 0)
+        {
 #ifdef __WXMSW__
-        _commit(_fileno(fileout));
+            _commit(_fileno(fileout));
 #else
-        fsync(fileno(fileout));
+            fsync(fileno(fileout));
 #endif
+        }
 
         return true;
     }
@@ -1010,10 +1068,8 @@ public:
         filein >> *this;
 
         // Check the header
-        if (CBigNum().SetCompact(nBits) > bnProofOfWorkLimit)
-            return error("CBlock::ReadFromDisk() : nBits errors in block header");
-        if (GetHash() > CBigNum().SetCompact(nBits).getuint256())
-            return error("CBlock::ReadFromDisk() : GetHash() errors in block header");
+        if (!CheckProofOfWork(GetHash(), nBits))
+            return error("CBlock::ReadFromDisk() : errors in block header");
 
         return true;
     }
@@ -1023,9 +1079,9 @@ public:
     void print() const
     {
         printf("CBlock(hash=%s, ver=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%d)\n",
-            GetHash().ToString().substr(0,16).c_str(),
+            GetHash().ToString().substr(0,20).c_str(),
             nVersion,
-            hashPrevBlock.ToString().substr(0,16).c_str(),
+            hashPrevBlock.ToString().substr(0,20).c_str(),
             hashMerkleRoot.ToString().substr(0,6).c_str(),
             nTime, nBits, nNonce,
             vtx.size());
@@ -1041,10 +1097,11 @@ public:
     }
 
 
-    int64 GetBlockValue(int64 nFees) const;
+    int64 GetBlockValue(int nHeight, int64 nFees) const;
     bool DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex);
     bool ConnectBlock(CTxDB& txdb, CBlockIndex* pindex);
-    bool ReadFromDisk(const CBlockIndex* blockindex, bool fReadTransactions=true);
+    bool ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions=true);
+    bool SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew);
     bool AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos);
     bool CheckBlock() const;
     bool AcceptBlock();
@@ -1072,6 +1129,7 @@ public:
     unsigned int nFile;
     unsigned int nBlockPos;
     int nHeight;
+    CBigNum bnChainWork;
 
     // block header
     int nVersion;
@@ -1089,6 +1147,7 @@ public:
         nFile = 0;
         nBlockPos = 0;
         nHeight = 0;
+        bnChainWork = 0;
 
         nVersion       = 0;
         hashMerkleRoot = 0;
@@ -1105,6 +1164,7 @@ public:
         nFile = nFileIn;
         nBlockPos = nBlockPosIn;
         nHeight = 0;
+        bnChainWork = 0;
 
         nVersion       = block.nVersion;
         hashMerkleRoot = block.hashMerkleRoot;
@@ -1118,9 +1178,26 @@ public:
         return *phashBlock;
     }
 
+    int64 GetBlockTime() const
+    {
+        return (int64)nTime;
+    }
+
+    CBigNum GetBlockWork() const
+    {
+        if (CBigNum().SetCompact(nBits) <= 0)
+            return 0;
+        return (CBigNum(1)<<256) / (CBigNum().SetCompact(nBits)+1);
+    }
+
     bool IsInMainChain() const
     {
         return (pnext || this == pindexBest);
+    }
+
+    bool CheckIndex() const
+    {
+        return CheckProofOfWork(GetBlockHash(), nBits);
     }
 
     bool EraseBlockFromDisk()
@@ -1142,13 +1219,13 @@ public:
 
     int64 GetMedianTimePast() const
     {
-        unsigned int pmedian[nMedianTimeSpan];
-        unsigned int* pbegin = &pmedian[nMedianTimeSpan];
-        unsigned int* pend = &pmedian[nMedianTimeSpan];
+        int64 pmedian[nMedianTimeSpan];
+        int64* pbegin = &pmedian[nMedianTimeSpan];
+        int64* pend = &pmedian[nMedianTimeSpan];
 
         const CBlockIndex* pindex = this;
         for (int i = 0; i < nMedianTimeSpan && pindex; i++, pindex = pindex->pprev)
-            *(--pbegin) = pindex->nTime;
+            *(--pbegin) = pindex->GetBlockTime();
 
         sort(pbegin, pend);
         return pbegin[(pend - pbegin)/2];
@@ -1160,7 +1237,7 @@ public:
         for (int i = 0; i < nMedianTimeSpan/2; i++)
         {
             if (!pindex->pnext)
-                return nTime;
+                return GetBlockTime();
             pindex = pindex->pnext;
         }
         return pindex->GetMedianTimePast();
@@ -1173,7 +1250,7 @@ public:
         return strprintf("CBlockIndex(nprev=%08x, pnext=%08x, nFile=%d, nBlockPos=%-6d nHeight=%d, merkle=%s, hashBlock=%s)",
             pprev, pnext, nFile, nBlockPos, nHeight,
             hashMerkleRoot.ToString().substr(0,6).c_str(),
-            GetBlockHash().ToString().substr(0,16).c_str());
+            GetBlockHash().ToString().substr(0,20).c_str());
     }
 
     void print() const
@@ -1243,8 +1320,8 @@ public:
         str += CBlockIndex::ToString();
         str += strprintf("\n                hashBlock=%s, hashPrev=%s, hashNext=%s)",
             GetBlockHash().ToString().c_str(),
-            hashPrev.ToString().substr(0,16).c_str(),
-            hashNext.ToString().substr(0,16).c_str());
+            hashPrev.ToString().substr(0,20).c_str(),
+            hashNext.ToString().substr(0,20).c_str());
         return str;
     }
 
@@ -1408,6 +1485,214 @@ public:
         READWRITE(strComment);
     )
 };
+
+
+
+
+
+
+//
+// Alert messages are broadcast as a vector of signed data.  Unserializing may
+// not read the entire buffer if the alert is for a newer version, but older
+// versions can still relay the original data.
+//
+class CUnsignedAlert
+{
+public:
+    int nVersion;
+    int64 nRelayUntil;      // when newer nodes stop relaying to newer nodes
+    int64 nExpiration;
+    int nID;
+    int nCancel;
+    set<int> setCancel;
+    int nMinVer;            // lowest version inclusive
+    int nMaxVer;            // highest version inclusive
+    set<string> setSubVer;  // empty matches all
+    int nPriority;
+
+    // Actions
+    string strComment;
+    string strStatusBar;
+    string strRPCError;
+
+    IMPLEMENT_SERIALIZE
+    (
+        READWRITE(this->nVersion);
+        nVersion = this->nVersion;
+        READWRITE(nRelayUntil);
+        READWRITE(nExpiration);
+        READWRITE(nID);
+        READWRITE(nCancel);
+        READWRITE(setCancel);
+        READWRITE(nMinVer);
+        READWRITE(nMaxVer);
+        READWRITE(setSubVer);
+        READWRITE(nPriority);
+
+        READWRITE(strComment);
+        READWRITE(strStatusBar);
+        READWRITE(strRPCError);
+    )
+
+    void SetNull()
+    {
+        nVersion = 1;
+        nRelayUntil = 0;
+        nExpiration = 0;
+        nID = 0;
+        nCancel = 0;
+        setCancel.clear();
+        nMinVer = 0;
+        nMaxVer = 0;
+        setSubVer.clear();
+        nPriority = 0;
+
+        strComment.clear();
+        strStatusBar.clear();
+        strRPCError.clear();
+    }
+
+    string ToString() const
+    {
+        string strSetCancel;
+        foreach(int n, setCancel)
+            strSetCancel += strprintf("%d ", n);
+        string strSetSubVer;
+        foreach(string str, setSubVer)
+            strSetSubVer += "\"" + str + "\" ";
+        return strprintf(
+                "CAlert(\n"
+                "    nVersion     = %d\n"
+                "    nRelayUntil  = %"PRI64d"\n"
+                "    nExpiration  = %"PRI64d"\n"
+                "    nID          = %d\n"
+                "    nCancel      = %d\n"
+                "    setCancel    = %s\n"
+                "    nMinVer      = %d\n"
+                "    nMaxVer      = %d\n"
+                "    setSubVer    = %s\n"
+                "    nPriority    = %d\n"
+                "    strComment   = \"%s\"\n"
+                "    strStatusBar = \"%s\"\n"
+                "    strRPCError  = \"%s\"\n"
+                ")\n",
+            nVersion,
+            nRelayUntil,
+            nExpiration,
+            nID,
+            nCancel,
+            strSetCancel.c_str(),
+            nMinVer,
+            nMaxVer,
+            strSetSubVer.c_str(),
+            nPriority,
+            strComment.c_str(),
+            strStatusBar.c_str(),
+            strRPCError.c_str());
+    }
+
+    void print() const
+    {
+        printf("%s", ToString().c_str());
+    }
+};
+
+class CAlert : public CUnsignedAlert
+{
+public:
+    vector<unsigned char> vchMsg;
+    vector<unsigned char> vchSig;
+
+    CAlert()
+    {
+        SetNull();
+    }
+
+    IMPLEMENT_SERIALIZE
+    (
+        READWRITE(vchMsg);
+        READWRITE(vchSig);
+    )
+
+    void SetNull()
+    {
+        CUnsignedAlert::SetNull();
+        vchMsg.clear();
+        vchSig.clear();
+    }
+
+    bool IsNull() const
+    {
+        return (nExpiration == 0);
+    }
+
+    uint256 GetHash() const
+    {
+        return SerializeHash(*this);
+    }
+
+    bool IsInEffect() const
+    {
+        return (GetAdjustedTime() < nExpiration);
+    }
+
+    bool Cancels(const CAlert& alert) const
+    {
+        if (!IsInEffect())
+            false;
+        return (alert.nID <= nCancel || setCancel.count(alert.nID));
+    }
+
+    bool AppliesTo(int nVersion, string strSubVerIn) const
+    {
+        return (IsInEffect() &&
+                nMinVer <= nVersion && nVersion <= nMaxVer &&
+                (setSubVer.empty() || setSubVer.count(strSubVerIn)));
+    }
+
+    bool AppliesToMe() const
+    {
+        return AppliesTo(VERSION, ::pszSubVer);
+    }
+
+    bool RelayTo(CNode* pnode) const
+    {
+        if (!IsInEffect())
+            return false;
+        // returns true if wasn't already contained in the set
+        if (pnode->setKnown.insert(GetHash()).second)
+        {
+            if (AppliesTo(pnode->nVersion, pnode->strSubVer) ||
+                AppliesToMe() ||
+                GetAdjustedTime() < nRelayUntil)
+            {
+                pnode->PushMessage("alert", *this);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool CheckSignature()
+    {
+        CKey key;
+        if (!key.SetPubKey(ParseHex("04fc9702847840aaf195de8442ebecedf5b095cdbb9bc716bda9110971b28a49e0ead8564ff0db22209e0374782c093bb899692d524e9d6a6956e7c5ecbcd68284")))
+            return error("CAlert::CheckSignature() : SetPubKey failed");
+        if (!key.Verify(Hash(vchMsg.begin(), vchMsg.end()), vchSig))
+            return error("CAlert::CheckSignature() : verify signature failed");
+
+        // Now unserialize the data
+        CDataStream sMsg(vchMsg);
+        sMsg >> *(CUnsignedAlert*)this;
+        return true;
+    }
+
+    bool ProcessAlert();
+};
+
+
+
+
 
 
 

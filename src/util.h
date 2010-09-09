@@ -54,8 +54,21 @@ inline T& REF(const T& val)
     return (T&)val;
 }
 
+// Align by increasing pointer, must have extra space at end of buffer
+template <size_t nBytes, typename T>
+T* alignup(T* p)
+{
+    union
+    {
+        T* ptr;
+        size_t n;
+    } u;
+    u.ptr = p;
+    u.n = (u.n + (nBytes-1)) & ~(nBytes-1);
+    return u.ptr;
+}
+
 #ifdef __WXMSW__
-static const bool fWindows = true;
 #define MSG_NOSIGNAL        0
 #define MSG_DONTWAIT        0
 #ifndef UINT64_MAX
@@ -70,7 +83,6 @@ static const bool fWindows = true;
 #define unlink              _unlink
 typedef int socklen_t;
 #else
-static const bool fWindows = false;
 #define WSAGetLastError()   errno
 #define WSAEWOULDBLOCK      EWOULDBLOCK
 #define WSAEMSGSIZE         EMSGSIZE
@@ -84,10 +96,12 @@ typedef u_int SOCKET;
 #define _vsnprintf(a,b,c,d) vsnprintf(a,b,c,d)
 #define strlwr(psz)         to_lower(psz)
 #define _strlwr(psz)        to_lower(psz)
-#define _mkdir(psz)         filesystem::create_directory(psz)
 #define MAX_PATH            1024
-#define Sleep(n)            wxMilliSleep(n)
 #define Beep(n1,n2)         (0)
+inline void Sleep(int64 n)
+{
+    boost::thread::sleep(boost::get_system_time() + boost::posix_time::milliseconds(n));
+}
 #endif
 
 inline int myclosesocket(SOCKET& hSocket)
@@ -103,6 +117,13 @@ inline int myclosesocket(SOCKET& hSocket)
     return ret;
 }
 #define closesocket(s)      myclosesocket(s)
+
+#ifndef GUI
+inline const char* _(const char* psz)
+{
+    return psz;
+}
+#endif
 
 
 
@@ -122,6 +143,7 @@ extern char pszSetDataDir[MAX_PATH];
 extern bool fShutdown;
 extern bool fDaemon;
 extern bool fCommandLine;
+extern string strMiscWarning;
 
 void RandAddSeed();
 void RandAddSeedPerfmon();
@@ -129,8 +151,9 @@ int OutputDebugStringF(const char* pszFormat, ...);
 int my_snprintf(char* buffer, size_t limit, const char* format, ...);
 string strprintf(const char* format, ...);
 bool error(const char* format, ...);
-void PrintException(std::exception* pex, const char* pszThread);
 void LogException(std::exception* pex, const char* pszThread);
+void PrintException(std::exception* pex, const char* pszThread);
+void PrintExceptionContinue(std::exception* pex, const char* pszThread);
 void ParseString(const string& str, char c, vector<string>& v);
 string FormatMoney(int64 n, bool fPlus=false);
 bool ParseMoney(const string& str, int64& nRet);
@@ -141,6 +164,8 @@ void ParseParameters(int argc, char* argv[]);
 const char* wxGetTranslation(const char* psz);
 int GetFilesize(FILE* file);
 void GetDataDir(char* pszDirRet);
+string GetConfigFile();
+void ReadConfigFile(map<string, string>& mapSettingsRet, map<string, vector<string> >& mapMultiSettingsRet);
 #ifdef __WXMSW__
 string MyGetSpecialFolderPath(int nFolder, bool fCreate);
 #endif
@@ -275,18 +300,26 @@ inline int64 roundint64(double d)
     return (int64)(d > 0 ? d + 0.5 : d - 0.5);
 }
 
-template<typename T>
-string HexStr(const T itbegin, const T itend, bool fSpaces=true)
+inline int64 abs64(int64 n)
 {
+    return (n >= 0 ? n : -n);
+}
+
+template<typename T>
+string HexStr(const T itbegin, const T itend, bool fSpaces=false)
+{
+    if (itbegin == itend)
+        return "";
     const unsigned char* pbegin = (const unsigned char*)&itbegin[0];
     const unsigned char* pend = pbegin + (itend - itbegin) * sizeof(itbegin[0]);
     string str;
+    str.reserve((pend-pbegin) * (fSpaces ? 3 : 2));
     for (const unsigned char* p = pbegin; p != pend; p++)
         str += strprintf((fSpaces && p != pend-1 ? "%02x " : "%02x"), *p);
     return str;
 }
 
-inline string HexStr(vector<unsigned char> vch, bool fSpaces=true)
+inline string HexStr(const vector<unsigned char>& vch, bool fSpaces=false)
 {
     return HexStr(vch.begin(), vch.end(), fSpaces);
 }
@@ -294,12 +327,20 @@ inline string HexStr(vector<unsigned char> vch, bool fSpaces=true)
 template<typename T>
 string HexNumStr(const T itbegin, const T itend, bool f0x=true)
 {
+    if (itbegin == itend)
+        return "";
     const unsigned char* pbegin = (const unsigned char*)&itbegin[0];
     const unsigned char* pend = pbegin + (itend - itbegin) * sizeof(itbegin[0]);
     string str = (f0x ? "0x" : "");
+    str.reserve(str.size() + (pend-pbegin) * 2);
     for (const unsigned char* p = pend-1; p >= pbegin; p--)
-        str += strprintf("%02X", *p);
+        str += strprintf("%02x", *p);
     return str;
+}
+
+inline string HexNumStr(const vector<unsigned char>& vch, bool f0x=true)
+{
+    return HexNumStr(vch.begin(), vch.end(), f0x);
 }
 
 template<typename T>
@@ -308,12 +349,12 @@ void PrintHex(const T pbegin, const T pend, const char* pszFormat="%s", bool fSp
     printf(pszFormat, HexStr(pbegin, pend, fSpaces).c_str());
 }
 
-inline void PrintHex(vector<unsigned char> vch, const char* pszFormat="%s", bool fSpaces=true)
+inline void PrintHex(const vector<unsigned char>& vch, const char* pszFormat="%s", bool fSpaces=true)
 {
     printf(pszFormat, HexStr(vch, fSpaces).c_str());
 }
 
-inline int64 PerformanceCounter()
+inline int64 GetPerformanceCounter()
 {
     int64 nCounter = 0;
 #ifdef __WXMSW__
@@ -348,7 +389,14 @@ void skipspaces(T& it)
         ++it;
 }
 
-
+inline bool IsSwitchChar(char c)
+{
+#ifdef __WXMSW__
+    return c == '-' || c == '/';
+#else
+    return c == '-';
+#endif
+}
 
 
 
@@ -369,16 +417,16 @@ inline void heapchk()
 }
 
 // Randomize the stack to help protect against buffer overrun exploits
-#define IMPLEMENT_RANDOMIZE_STACK(ThreadFn)                         \
-    {                                                               \
-        static char nLoops;                                         \
-        if (nLoops <= 0)                                            \
-            nLoops = GetRand(20) + 1;                               \
-        if (nLoops-- > 1)                                           \
-        {                                                           \
-            ThreadFn;                                               \
-            return;                                                 \
-        }                                                           \
+#define IMPLEMENT_RANDOMIZE_STACK(ThreadFn)     \
+    {                                           \
+        static char nLoops;                     \
+        if (nLoops <= 0)                        \
+            nLoops = GetRand(20) + 1;           \
+        if (nLoops-- > 1)                       \
+        {                                       \
+            ThreadFn;                           \
+            return;                             \
+        }                                       \
     }
 
 #define CATCH_PRINT_EXCEPTION(pszFn)     \
@@ -400,8 +448,9 @@ inline void heapchk()
 template<typename T1>
 inline uint256 Hash(const T1 pbegin, const T1 pend)
 {
+    static unsigned char pblank[1];
     uint256 hash1;
-    SHA256((unsigned char*)&pbegin[0], (pend - pbegin) * sizeof(pbegin[0]), (unsigned char*)&hash1);
+    SHA256((pbegin == pend ? pblank : (unsigned char*)&pbegin[0]), (pend - pbegin) * sizeof(pbegin[0]), (unsigned char*)&hash1);
     uint256 hash2;
     SHA256((unsigned char*)&hash1, sizeof(hash1), (unsigned char*)&hash2);
     return hash2;
@@ -411,11 +460,12 @@ template<typename T1, typename T2>
 inline uint256 Hash(const T1 p1begin, const T1 p1end,
                     const T2 p2begin, const T2 p2end)
 {
+    static unsigned char pblank[1];
     uint256 hash1;
     SHA256_CTX ctx;
     SHA256_Init(&ctx);
-    SHA256_Update(&ctx, (unsigned char*)&p1begin[0], (p1end - p1begin) * sizeof(p1begin[0]));
-    SHA256_Update(&ctx, (unsigned char*)&p2begin[0], (p2end - p2begin) * sizeof(p2begin[0]));
+    SHA256_Update(&ctx, (p1begin == p1end ? pblank : (unsigned char*)&p1begin[0]), (p1end - p1begin) * sizeof(p1begin[0]));
+    SHA256_Update(&ctx, (p2begin == p2end ? pblank : (unsigned char*)&p2begin[0]), (p2end - p2begin) * sizeof(p2begin[0]));
     SHA256_Final((unsigned char*)&hash1, &ctx);
     uint256 hash2;
     SHA256((unsigned char*)&hash1, sizeof(hash1), (unsigned char*)&hash2);
@@ -427,12 +477,13 @@ inline uint256 Hash(const T1 p1begin, const T1 p1end,
                     const T2 p2begin, const T2 p2end,
                     const T3 p3begin, const T3 p3end)
 {
+    static unsigned char pblank[1];
     uint256 hash1;
     SHA256_CTX ctx;
     SHA256_Init(&ctx);
-    SHA256_Update(&ctx, (unsigned char*)&p1begin[0], (p1end - p1begin) * sizeof(p1begin[0]));
-    SHA256_Update(&ctx, (unsigned char*)&p2begin[0], (p2end - p2begin) * sizeof(p2begin[0]));
-    SHA256_Update(&ctx, (unsigned char*)&p3begin[0], (p3end - p3begin) * sizeof(p3begin[0]));
+    SHA256_Update(&ctx, (p1begin == p1end ? pblank : (unsigned char*)&p1begin[0]), (p1end - p1begin) * sizeof(p1begin[0]));
+    SHA256_Update(&ctx, (p2begin == p2end ? pblank : (unsigned char*)&p2begin[0]), (p2end - p2begin) * sizeof(p2begin[0]));
+    SHA256_Update(&ctx, (p3begin == p3end ? pblank : (unsigned char*)&p3begin[0]), (p3end - p3begin) * sizeof(p3begin[0]));
     SHA256_Final((unsigned char*)&hash1, &ctx);
     uint256 hash2;
     SHA256((unsigned char*)&hash1, sizeof(hash1), (unsigned char*)&hash2);
