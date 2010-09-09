@@ -184,8 +184,8 @@ msgid "From: "
 msgstr "Remetente: "
 
 #: ../../../ui.cpp:634
-msgid "From: unknown, Received with: "
-msgstr "Remetente: desconhecido, Recebido por: "
+msgid "Received with: "
+msgstr "Recebido por: "
 
 #: ../../../ui.cpp:676
 msgid "Payment to yourself"
@@ -216,7 +216,7 @@ msgstr "Novo Endereço de Recepção"
 #: ../../../ui.cpp:1124
 #: ../../../ui.cpp:2352
 msgid ""
-"It's good policy to use a new address for each payment you receive.\n"
+"You should use a new address for each payment you receive.\n"
 "\n"
 "Label"
 msgstr ""
@@ -325,6 +325,14 @@ msgstr "versão 0.%d.%d beta"
 #: ../../../ui.cpp:1681
 msgid "Will appear as \"From: Unknown\""
 msgstr "Irá aparecer como \"De: Desconhecido\""
+
+#: ../../../ui.cpp:1681
+msgid "n/a"
+msgstr "Desconhecido"
+
+#: ../../../ui.cpp:1681
+msgid "Unknown"
+msgstr "Desconhecido"
 
 #: ../../../ui.cpp:1682
 msgid "Can't include a message when sending to a Bitcoin address"

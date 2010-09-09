@@ -60,7 +60,7 @@ CDB::CDB(const char* pszFile, const char* pszMode) : pdb(NULL)
                 return;
             string strDataDir = GetDataDir();
             string strLogDir = strDataDir + "/database";
-            _mkdir(strLogDir.c_str());
+            filesystem::create_directory(strLogDir.c_str());
             string strErrorFile = strDataDir + "/db.log";
             printf("dbenv.open strLogDir=%s strErrorFile=%s\n", strLogDir.c_str(), strErrorFile.c_str());
 
@@ -81,7 +81,7 @@ CDB::CDB(const char* pszFile, const char* pszMode) : pdb(NULL)
                              DB_RECOVER,
                              S_IRUSR | S_IWUSR);
             if (ret > 0)
-                throw runtime_error(strprintf("CDB() : error %d opening database environment\n", ret));
+                throw runtime_error(strprintf("CDB() : error %d opening database environment", ret));
             fDbEnvInit = true;
         }
 
@@ -106,7 +106,7 @@ CDB::CDB(const char* pszFile, const char* pszMode) : pdb(NULL)
                 CRITICAL_BLOCK(cs_db)
                     --mapFileUseCount[strFile];
                 strFile = "";
-                throw runtime_error(strprintf("CDB() : can't open database file %s, error %d\n", pszFile, ret));
+                throw runtime_error(strprintf("CDB() : can't open database file %s, error %d", pszFile, ret));
             }
 
             if (fCreate && !Exists(string("version")))
@@ -130,7 +130,14 @@ void CDB::Close()
         vTxn.front()->abort();
     vTxn.clear();
     pdb = NULL;
-    dbenv.txn_checkpoint(0, 0, 0);
+
+    // Flush database activity from memory pool to disk log
+    unsigned int nMinutes = 0;
+    if (strFile == "addr.dat")
+        nMinutes = 2;
+    if (strFile == "blkindex.dat" && IsInitialBlockDownload() && nBestHeight % 500 != 0)
+        nMinutes = 1;
+    dbenv.txn_checkpoint(0, nMinutes, 0);
 
     CRITICAL_BLOCK(cs_db)
         --mapFileUseCount[strFile];
@@ -335,6 +342,16 @@ bool CTxDB::WriteHashBestChain(uint256 hashBestChain)
     return Write(string("hashBestChain"), hashBestChain);
 }
 
+bool CTxDB::ReadBestInvalidWork(CBigNum& bnBestInvalidWork)
+{
+    return Read(string("bnBestInvalidWork"), bnBestInvalidWork);
+}
+
+bool CTxDB::WriteBestInvalidWork(CBigNum bnBestInvalidWork)
+{
+    return Write(string("bnBestInvalidWork"), bnBestInvalidWork);
+}
+
 CBlockIndex* InsertBlockIndex(uint256 hash)
 {
     if (hash == 0)
@@ -357,11 +374,12 @@ CBlockIndex* InsertBlockIndex(uint256 hash)
 
 bool CTxDB::LoadBlockIndex()
 {
-    // Get cursor
+    // Get database cursor
     Dbc* pcursor = GetCursor();
     if (!pcursor)
         return false;
 
+    // Load mapBlockIndex
     unsigned int fFlags = DB_SET_RANGE;
     loop
     {
@@ -398,9 +416,12 @@ bool CTxDB::LoadBlockIndex()
             pindexNew->nBits          = diskindex.nBits;
             pindexNew->nNonce         = diskindex.nNonce;
 
-            // Watch for genesis block and best block
+            // Watch for genesis block
             if (pindexGenesisBlock == NULL && diskindex.GetBlockHash() == hashGenesisBlock)
                 pindexGenesisBlock = pindexNew;
+
+            if (!pindexNew->CheckIndex())
+                return error("LoadBlockIndex() : CheckIndex failed at %d", pindexNew->nHeight);
         }
         else
         {
@@ -409,18 +430,63 @@ bool CTxDB::LoadBlockIndex()
     }
     pcursor->close();
 
+    // Calculate bnChainWork
+    vector<pair<int, CBlockIndex*> > vSortedByHeight;
+    vSortedByHeight.reserve(mapBlockIndex.size());
+    foreach(const PAIRTYPE(uint256, CBlockIndex*)& item, mapBlockIndex)
+    {
+        CBlockIndex* pindex = item.second;
+        vSortedByHeight.push_back(make_pair(pindex->nHeight, pindex));
+    }
+    sort(vSortedByHeight.begin(), vSortedByHeight.end());
+    foreach(const PAIRTYPE(int, CBlockIndex*)& item, vSortedByHeight)
+    {
+        CBlockIndex* pindex = item.second;
+        pindex->bnChainWork = (pindex->pprev ? pindex->pprev->bnChainWork : 0) + pindex->GetBlockWork();
+    }
+
+    // Load hashBestChain pointer to end of best chain
     if (!ReadHashBestChain(hashBestChain))
     {
         if (pindexGenesisBlock == NULL)
             return true;
-        return error("CTxDB::LoadBlockIndex() : hashBestChain not found");
+        return error("CTxDB::LoadBlockIndex() : hashBestChain not loaded");
     }
-
     if (!mapBlockIndex.count(hashBestChain))
-        return error("CTxDB::LoadBlockIndex() : blockindex for hashBestChain not found");
+        return error("CTxDB::LoadBlockIndex() : hashBestChain not found in the block index");
     pindexBest = mapBlockIndex[hashBestChain];
     nBestHeight = pindexBest->nHeight;
-    printf("LoadBlockIndex(): hashBestChain=%s  height=%d\n", hashBestChain.ToString().substr(0,16).c_str(), nBestHeight);
+    bnBestChainWork = pindexBest->bnChainWork;
+    printf("LoadBlockIndex(): hashBestChain=%s  height=%d\n", hashBestChain.ToString().substr(0,20).c_str(), nBestHeight);
+
+    // Load bnBestInvalidWork, OK if it doesn't exist
+    ReadBestInvalidWork(bnBestInvalidWork);
+
+    // Verify blocks in the best chain
+    CBlockIndex* pindexFork = NULL;
+    for (CBlockIndex* pindex = pindexBest; pindex && pindex->pprev; pindex = pindex->pprev)
+    {
+        if (pindex->nHeight < 74000 && !mapArgs.count("-checkblocks"))
+            break;
+        CBlock block;
+        if (!block.ReadFromDisk(pindex))
+            return error("LoadBlockIndex() : block.ReadFromDisk failed");
+        if (!block.CheckBlock())
+        {
+            printf("LoadBlockIndex() : *** found bad block at %d, hash=%s\n", pindex->nHeight, pindex->GetBlockHash().ToString().c_str());
+            pindexFork = pindex->pprev;
+        }
+    }
+    if (pindexFork)
+    {
+        // Reorg back to the fork
+        printf("LoadBlockIndex() : *** moving best chain pointer back to block %d\n", pindexFork->nHeight);
+        CBlock block;
+        if (!block.ReadFromDisk(pindexFork))
+            return error("LoadBlockIndex() : block.ReadFromDisk failed");
+        CTxDB txdb;
+        block.SetBestChain(txdb, pindexFork);
+    }
 
     return true;
 }
@@ -568,8 +634,8 @@ bool CWalletDB::LoadWallet()
                 //printf("LoadWallet  %s\n", wtx.GetHash().ToString().c_str());
                 //printf(" %12I64d  %s  %s  %s\n",
                 //    wtx.vout[0].nValue,
-                //    DateTimeStrFormat("%x %H:%M:%S", wtx.nTime).c_str(),
-                //    wtx.hashBlock.ToString().substr(0,16).c_str(),
+                //    DateTimeStrFormat("%x %H:%M:%S", wtx.GetBlockTime()).c_str(),
+                //    wtx.hashBlock.ToString().substr(0,20).c_str(),
                 //    wtx.mapValue["message"].c_str());
             }
             else if (strType == "key" || strType == "wkey")
@@ -735,5 +801,39 @@ void ThreadFlushWalletDB(void* parg)
                 }
             }
         }
+    }
+}
+
+void BackupWallet(const string& strDest)
+{
+    while (!fShutdown)
+    {
+        CRITICAL_BLOCK(cs_db)
+        {
+            const string strFile = "wallet.dat";
+            if (!mapFileUseCount.count(strFile) || mapFileUseCount[strFile] == 0)
+            {
+                // Flush log data to the dat file
+                CloseDb(strFile);
+                dbenv.txn_checkpoint(0, 0, 0);
+                dbenv.lsn_reset(strFile.c_str(), 0);
+                mapFileUseCount.erase(strFile);
+
+                // Copy wallet.dat
+                filesystem::path pathSrc(GetDataDir() + "/" + strFile);
+                filesystem::path pathDest(strDest);
+                if (filesystem::is_directory(pathDest))
+                    pathDest = pathDest / strFile;
+#if BOOST_VERSION >= 104000
+                filesystem::copy_file(pathSrc, pathDest, filesystem::copy_option::overwrite_if_exists);
+#else
+                filesystem::copy_file(pathSrc, pathDest);
+#endif
+                printf("copied wallet.dat to %s\n", pathDest.string().c_str());
+
+                return;
+            }
+        }
+        Sleep(100);
     }
 }

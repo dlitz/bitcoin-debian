@@ -5,6 +5,7 @@
 # Mac OS X makefile for bitcoin
 # Laszlo Hanyecz (solar@heliacal.net)
 
+CXX=llvm-g++
 DEPSDIR=/Users/macosuser/bitcoin/deps
 
 INCLUDEPATHS= \
@@ -19,25 +20,17 @@ LIBS= -dead_strip \
  $(DEPSDIR)/lib/libdb_cxx-4.8.a \
  $(DEPSDIR)/lib/libboost_system.a \
  $(DEPSDIR)/lib/libboost_filesystem.a \
+ $(DEPSDIR)/lib/libboost_program_options.a \
+ $(DEPSDIR)/lib/libboost_thread.a \
  $(DEPSDIR)/lib/libcrypto.a 
 
-WXDEFS=$(shell $(DEPSDIR)/bin/wx-config --cxxflags) -DNOPCH -DMSG_NOSIGNAL=0
+DEFS=$(shell $(DEPSDIR)/bin/wx-config --cxxflags) -D__WXMAC_OSX__ -DNOPCH -DMSG_NOSIGNAL=0
 
 DEBUGFLAGS=-g -DwxDEBUG_LEVEL=0
 # ppc doesn't work because we don't support big-endian
-CFLAGS=-mmacosx-version-min=10.5 -arch i386 -arch x86_64 -O2 -Wno-invalid-offsetof -Wformat $(DEBUGFLAGS) $(WXDEFS) $(INCLUDEPATHS)
+CFLAGS=-mmacosx-version-min=10.5 -arch i386 -arch x86_64 -O3 -Wno-invalid-offsetof -Wformat $(DEBUGFLAGS) $(DEFS) $(INCLUDEPATHS)
 HEADERS=headers.h strlcpy.h serialize.h uint256.h util.h key.h bignum.h base58.h \
-    script.h db.h net.h irc.h main.h rpc.h uibase.h ui.h init.h sha.h
-
-
-all: bitcoin
-
-
-obj/%.o: %.cpp $(HEADERS)
-	g++ -c $(CFLAGS) -o $@ $<
-
-obj/sha.o: sha.cpp sha.h
-	g++ -c $(CFLAGS) -O3 -o $@ $<
+    script.h db.h net.h irc.h main.h rpc.h uibase.h ui.h noui.h init.h
 
 OBJS= \
     obj/util.o \
@@ -47,19 +40,33 @@ OBJS= \
     obj/irc.o \
     obj/main.o \
     obj/rpc.o \
-    obj/init.o
+    obj/init.o \
+    cryptopp/obj/sha.o \
+    cryptopp/obj/cpu.o
 	
-bitcoin: $(OBJS) obj/ui.o obj/uibase.o obj/sha.o
-	g++ $(CFLAGS) -o $@ $(LIBPATHS) $^ $(WXLIBS) $(LIBS)
+
+all: bitcoin
+
+
+obj/%.o: %.cpp $(HEADERS)
+	$(CXX) -c $(CFLAGS) -DGUI -o $@ $<
+
+cryptopp/obj/%.o: cryptopp/%.cpp
+	$(CXX) -c $(CFLAGS) -O3 -DCRYPTOPP_DISABLE_ASM -o $@ $<
+
+bitcoin: $(OBJS) obj/ui.o obj/uibase.o
+	$(CXX) $(CFLAGS) -o $@ $(LIBPATHS) $^ $(WXLIBS) $(LIBS)
 
 
 obj/nogui/%.o: %.cpp $(HEADERS)
-	g++ -c $(CFLAGS) -DwxUSE_GUI=0 -o $@ $<
+	$(CXX) -c $(CFLAGS) -o $@ $<
 
-bitcoind: $(OBJS:obj/%=obj/nogui/%) obj/sha.o
-	g++ $(CFLAGS) -o $@ $(LIBPATHS) $^ $(WXLIBS) $(LIBS)
+bitcoind: $(OBJS:obj/%=obj/nogui/%)
+	$(CXX) $(CFLAGS) -o $@ $(LIBPATHS) $^ $(LIBS)
 
 
 clean:
+	-rm -f bitcoin bitcoind
 	-rm -f obj/*.o
 	-rm -f obj/nogui/*.o
+	-rm -f cryptopp/obj/*.o

@@ -14,6 +14,15 @@ char pszSetDataDir[MAX_PATH] = "";
 bool fShutdown = false;
 bool fDaemon = false;
 bool fCommandLine = false;
+string strMiscWarning;
+
+
+
+
+
+// Workaround for "multiple definition of `_tls_used'"
+// http://svn.boost.org/trac/boost/ticket/4258
+extern "C" void tss_cleanup_implemented() { }
 
 
 
@@ -70,7 +79,7 @@ instance_of_cinit;
 void RandAddSeed()
 {
     // Seed with CPU performance counter
-    int64 nCounter = PerformanceCounter();
+    int64 nCounter = GetPerformanceCounter();
     RAND_add(&nCounter, sizeof(nCounter), 1.5);
     memset(&nCounter, 0, sizeof(nCounter));
 }
@@ -95,12 +104,8 @@ void RandAddSeedPerfmon()
     RegCloseKey(HKEY_PERFORMANCE_DATA);
     if (ret == ERROR_SUCCESS)
     {
-        uint256 hash;
-        SHA256(pdata, nSize, (unsigned char*)&hash);
-        RAND_add(&hash, sizeof(hash), min(nSize/500.0, (double)sizeof(hash)));
-        hash = 0;
+        RAND_add(pdata, nSize, nSize/100.0);
         memset(pdata, 0, nSize);
-
         printf("%s RandAddSeed() %d bytes\n", DateTimeStrFormat("%x %H:%M", GetTime()).c_str(), nSize);
     }
 #endif
@@ -134,7 +139,7 @@ uint64 GetRand(uint64 nMax)
 inline int OutputDebugStringF(const char* pszFormat, ...)
 {
     int ret = 0;
-    if (fPrintToConsole || wxTheApp == NULL)
+    if (fPrintToConsole)
     {
         // print to console
         va_list arg_ptr;
@@ -362,11 +367,6 @@ bool ParseMoney(const char* pszIn, int64& nRet)
 
 vector<unsigned char> ParseHex(const char* psz)
 {
-    vector<unsigned char> vch;
-    while (isspace(*psz))
-        psz++;
-    vch.reserve((strlen(psz)+1)/3);
-
     static char phexdigit[256] =
     { -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
       -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
@@ -385,24 +385,22 @@ vector<unsigned char> ParseHex(const char* psz)
       -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
       -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, };
 
-    while (*psz)
+    // convert hex dump to vector
+    vector<unsigned char> vch;
+    loop
     {
+        while (isspace(*psz))
+            psz++;
         char c = phexdigit[(unsigned char)*psz++];
         if (c == -1)
             break;
         unsigned char n = (c << 4);
-        if (*psz)
-        {
-            char c = phexdigit[(unsigned char)*psz++];
-            if (c == -1)
-                break;
-            n |= c;
-            vch.push_back(n);
-        }
-        while (isspace(*psz))
-            psz++;
+        c = phexdigit[(unsigned char)*psz++];
+        if (c == -1)
+            break;
+        n |= c;
+        vch.push_back(n);
     }
-
     return vch;
 }
 
@@ -416,7 +414,7 @@ void ParseParameters(int argc, char* argv[])
 {
     mapArgs.clear();
     mapMultiArgs.clear();
-    for (int i = 0; i < argc; i++)
+    for (int i = 1; i < argc; i++)
     {
         char psz[10000];
         strlcpy(psz, argv[i], sizeof(psz));
@@ -431,6 +429,8 @@ void ParseParameters(int argc, char* argv[])
         if (psz[0] == '/')
             psz[0] = '-';
         #endif
+        if (psz[0] != '-')
+            break;
         mapArgs[psz] = pszValue;
         mapMultiArgs[psz].push_back(pszValue);
     }
@@ -439,6 +439,7 @@ void ParseParameters(int argc, char* argv[])
 
 const char* wxGetTranslation(const char* pszEnglish)
 {
+#ifdef GUI
     // Wrapper of wxGetTranslation returning the same const char* type as was passed in
     static CCriticalSection cs;
     CRITICAL_BLOCK(cs)
@@ -465,6 +466,9 @@ const char* wxGetTranslation(const char* pszEnglish)
         return pszCached;
     }
     return NULL;
+#else
+    return pszEnglish;
+#endif
 }
 
 
@@ -483,8 +487,6 @@ void FormatException(char* pszMessage, std::exception* pex, const char* pszThrea
     pszModule[0] = '\0';
     GetModuleFileNameA(NULL, pszModule, sizeof(pszModule));
 #else
-    // might not be thread safe, uses wxString
-    //const char* pszModule = wxStandardPaths::Get().GetExecutablePath().mb_str();
     const char* pszModule = "bitcoin";
 #endif
     if (pex)
@@ -497,21 +499,47 @@ void FormatException(char* pszMessage, std::exception* pex, const char* pszThrea
 
 void LogException(std::exception* pex, const char* pszThread)
 {
-    char pszMessage[1000];
+    char pszMessage[10000];
     FormatException(pszMessage, pex, pszThread);
     printf("\n%s", pszMessage);
 }
 
 void PrintException(std::exception* pex, const char* pszThread)
 {
-    char pszMessage[1000];
+    char pszMessage[10000];
     FormatException(pszMessage, pex, pszThread);
     printf("\n\n************************\n%s\n", pszMessage);
     fprintf(stderr, "\n\n************************\n%s\n", pszMessage);
-    if (wxTheApp && !fDaemon && fGUI)
-        MyMessageBox(pszMessage, "Error", wxOK | wxICON_ERROR);
+    strMiscWarning = pszMessage;
+#ifdef GUI
+    if (wxTheApp && !fDaemon)
+        MyMessageBox(pszMessage, "Bitcoin", wxOK | wxICON_ERROR);
+#endif
     throw;
-    //DebugBreak();
+}
+
+void ThreadOneMessageBox(string strMessage)
+{
+    // Skip message boxes if one is already open
+    static bool fMessageBoxOpen;
+    if (fMessageBoxOpen)
+        return;
+    fMessageBoxOpen = true;
+    ThreadSafeMessageBox(strMessage, "Bitcoin", wxOK | wxICON_EXCLAMATION);
+    fMessageBoxOpen = false;
+}
+
+void PrintExceptionContinue(std::exception* pex, const char* pszThread)
+{
+    char pszMessage[10000];
+    FormatException(pszMessage, pex, pszThread);
+    printf("\n\n************************\n%s\n", pszMessage);
+    fprintf(stderr, "\n\n************************\n%s\n", pszMessage);
+    strMiscWarning = pszMessage;
+#ifdef GUI
+    if (wxTheApp && !fDaemon)
+        boost::thread(bind(ThreadOneMessageBox, string(pszMessage)));
+#endif
 }
 
 
@@ -572,10 +600,10 @@ string GetDefaultDataDir()
     string strHome = pszHome;
     if (strHome[strHome.size()-1] != '/')
         strHome += '/';
-#ifdef __WXOSX__
+#ifdef __WXMAC_OSX__
     // Mac
     strHome += "Library/Application Support/";
-    _mkdir(strHome.c_str());
+    filesystem::create_directory(strHome.c_str());
     return strHome + "Bitcoin";
 #else
     // Unix
@@ -594,7 +622,7 @@ void GetDataDir(char* pszDir)
         if (!fMkdirDone)
         {
             fMkdirDone = true;
-            _mkdir(pszDir);
+            filesystem::create_directory(pszDir);
         }
     }
     else
@@ -604,9 +632,8 @@ void GetDataDir(char* pszDir)
         static char pszCachedDir[MAX_PATH];
         if (pszCachedDir[0] == 0)
         {
-            //strlcpy(pszCachedDir, wxStandardPaths::Get().GetUserDataDir().c_str(), sizeof(pszCachedDir));
             strlcpy(pszCachedDir, GetDefaultDataDir().c_str(), sizeof(pszCachedDir));
-            _mkdir(pszCachedDir);
+            filesystem::create_directory(pszCachedDir);
         }
         strlcpy(pszDir, pszCachedDir, MAX_PATH);
     }
@@ -617,6 +644,38 @@ string GetDataDir()
     char pszDir[MAX_PATH];
     GetDataDir(pszDir);
     return pszDir;
+}
+
+string GetConfigFile()
+{
+    namespace fs = boost::filesystem;
+    fs::path pathConfig(mapArgs.count("-conf") ? mapArgs["-conf"] : string("bitcoin.conf"));
+    if (!pathConfig.is_complete())
+        pathConfig = fs::path(GetDataDir()) / pathConfig;
+    return pathConfig.string();
+}
+
+void ReadConfigFile(map<string, string>& mapSettingsRet,
+                    map<string, vector<string> >& mapMultiSettingsRet)
+{
+    namespace fs = boost::filesystem;
+    namespace pod = boost::program_options::detail;
+
+    fs::ifstream streamConfig(GetConfigFile());
+    if (!streamConfig.good())
+        return;
+
+    set<string> setOptions;
+    setOptions.insert("*");
+    
+    for (pod::config_file_iterator it(streamConfig, setOptions), end; it != end; ++it)
+    {
+        // Don't overwrite existing settings so command line settings override bitcoin.conf
+        string strKey = string("-") + it->string_key;
+        if (mapSettingsRet.count(strKey) == 0)
+            mapSettingsRet[strKey] = it->value[0];
+        mapMultiSettingsRet[strKey].push_back(it->value[0]);
+    }
 }
 
 int GetFilesize(FILE* file)
@@ -648,9 +707,6 @@ void ShrinkDebugFile()
         }
     }
 }
-
-
-
 
 
 
@@ -700,13 +756,28 @@ void AddTimeData(unsigned int ip, int64 nTime)
     {
         sort(vTimeOffsets.begin(), vTimeOffsets.end());
         int64 nMedian = vTimeOffsets[vTimeOffsets.size()/2];
-        nTimeOffset = nMedian;
-        if ((nMedian > 0 ? nMedian : -nMedian) > 5 * 60)
+        // Only let other nodes change our time by so much
+        if (abs64(nMedian) < 70 * 60)
         {
-            // Only let other nodes change our clock so far before we
-            // go to the NTP servers
-            /// todo: Get time from NTP servers, then set a flag
-            ///    to make sure it doesn't get changed again
+            nTimeOffset = nMedian;
+        }
+        else
+        {
+            nTimeOffset = 0;
+            // If nobody else has the same time as us, give a warning
+            bool fMatch = false;
+            foreach(int64 nOffset, vTimeOffsets)
+                if (nOffset != 0 && abs64(nOffset) < 10 * 60)
+                    fMatch = true;
+            static bool fDone;
+            if (!fMatch && !fDone)
+            {
+                fDone = true;
+                string strMessage = _("Warning: Please check that your computer's date and time are correct.  If your clock is wrong Bitcoin will not work properly.");
+                strMiscWarning = strMessage;
+                printf("*** %s\n", strMessage.c_str());
+                boost::thread(bind(ThreadSafeMessageBox, strMessage+" ", string("Bitcoin"), wxOK | wxICON_EXCLAMATION, (wxWindow*)NULL, -1, -1));
+            }
         }
         foreach(int64 n, vTimeOffsets)
             printf("%+"PRI64d"  ", n);
