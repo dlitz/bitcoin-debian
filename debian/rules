@@ -43,4 +43,4 @@ CFLAGS += $(wx-cxxflags)
 
 CFLAGS += -Wno-invalid-offsetof -Wformat
 
-CDBS_BUILD_DEPENDS += , libwxgtk2.8-dev, libboost-system-dev, libdb-dev, libdb4.8++-dev | libdb++-dev, libssl-dev
+CDBS_BUILD_DEPENDS += , libwxgtk2.8-dev, libboost-system-dev, libdb-dev, libdb4.8++-dev | libdb++-dev, libssl-dev, libcrypto++-dev
