@@ -14,6 +14,19 @@ Files: ./src/strlcpy.h
 Copyright: 1998, Todd C. Miller <Todd.Miller@courtesan.com>
 License: ISC
 
+Files: ./src/cryptopp/*
+Copyright: None (publich domain)
+License: PD
+ The following files are copyrighted by their respective original
+ authors, and their use is subject to additional licenses included in
+ these files.
+ .
+ mars.cpp - Copyright 1998 Brian Gladman.
+ .
+ All other files in this compilation are placed in the public domain by
+ Wei Dai and other contributors.
+Comment: Upstream source do not contain a file named mars.cpp.
+
 Files: ./debian/*
 Copyright: 2010, Jonas Smedegaard <dr@jones.dk>
 License: GPL-2+
