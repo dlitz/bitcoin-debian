@@ -43,7 +43,7 @@ CFLAGS += $(wx-cxxflags)
 
 CFLAGS += -Wno-invalid-offsetof -Wformat
 
-# Explicit version of BerkeleyDB (db upgrades seem not seemless if at all)
-dbver = 4.8
+# Code needs explicit version of BerkeleyDB according to upstream build note
+dbver = 4.7
 
-CDBS_BUILD_DEPENDS += , libwxgtk2.8-dev, libboost-system-dev, libdb$(dbver)-dev, libdb$(dbver)++-dev, libssl-dev, libcrypto++-dev
+CDBS_BUILD_DEPENDS += , libwxgtk2.8-dev, libboost-system-dev, libdb$(dbver)++-dev, libssl-dev, libcrypto++-dev
