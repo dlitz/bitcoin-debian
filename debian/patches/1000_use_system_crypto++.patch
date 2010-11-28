@@ -3,7 +3,7 @@ Author: Jonas Smedegaard <dr@jones.dk>
 Last-Update: 2010-11-28
 --- a/src/makefile.unix
 +++ b/src/makefile.unix
-@@ -41,9 +41,7 @@
+@@ -44,9 +44,7 @@
      obj/irc.o \
      obj/main.o \
      obj/rpc.o \
@@ -14,7 +14,7 @@ Last-Update: 2010-11-28
  
  
  all: bitcoin
-@@ -52,8 +50,6 @@
+@@ -55,8 +53,6 @@
  obj/%.o: %.cpp $(HEADERS)
  	g++ -c $(CFLAGS) -DGUI -o $@ $<
  
@@ -23,7 +23,7 @@ Last-Update: 2010-11-28
  
  obj/sha256.o: sha256.cpp
  	g++ -c $(CFLAGS) -msse2 -O3 -march=amdfam10 -o $@ $<
-@@ -72,5 +68,4 @@
+@@ -75,5 +71,4 @@
  clean:
  	-rm -f obj/*.o
  	-rm -f obj/nogui/*.o
