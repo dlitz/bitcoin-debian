@@ -12,7 +12,7 @@ extern int nBestHeight;
 
 
 
-static const unsigned short DEFAULT_PORT = 0x8d20; // htons(8333)
+inline unsigned short GetDefaultPort() { return fTestNet ? htons(18333) : htons(8333); }
 static const unsigned int PUBLISH_HOPS = 5;
 enum
 {
@@ -48,10 +48,7 @@ bool StopNode();
 //  (4) size
 //  (4) checksum
 
-// The message start string is designed to be unlikely to occur in normal data.
-// The characters are rarely used upper ascii, not valid as UTF-8, and produce
-// a large 4-byte int at any alignment.
-static const char pchMessageStart[4] = { 0xf9, 0xbe, 0xb4, 0xd9 };
+extern char pchMessageStart[4];
 
 class CMessageHeader
 {
@@ -153,11 +150,11 @@ public:
         Init();
     }
 
-    CAddress(unsigned int ipIn, unsigned short portIn=DEFAULT_PORT, uint64 nServicesIn=NODE_NETWORK)
+    CAddress(unsigned int ipIn, unsigned short portIn=0, uint64 nServicesIn=NODE_NETWORK)
     {
         Init();
         ip = ipIn;
-        port = portIn;
+        port = (portIn == 0 ? GetDefaultPort() : portIn);
         nServices = nServicesIn;
     }
 
@@ -188,7 +185,7 @@ public:
         nServices = NODE_NETWORK;
         memcpy(pchReserved, pchIPv4, sizeof(pchReserved));
         ip = INADDR_NONE;
-        port = DEFAULT_PORT;
+        port = GetDefaultPort();
         nTime = GetAdjustedTime();
         nLastTry = 0;
     }
@@ -196,7 +193,7 @@ public:
     bool SetAddress(const char* pszIn)
     {
         ip = INADDR_NONE;
-        port = DEFAULT_PORT;
+        port = GetDefaultPort();
         char psz[100];
         strlcpy(psz, pszIn, sizeof(psz));
         unsigned int a=0, b=0, c=0, d=0, e=0;

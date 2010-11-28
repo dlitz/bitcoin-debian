@@ -11,7 +11,7 @@
 #ifdef _WIN32_WINNT
 #undef _WIN32_WINNT
 #endif
-#define _WIN32_WINNT 0x0400
+#define _WIN32_WINNT 0x0500
 #ifdef _WIN32_IE
 #undef _WIN32_IE
 #endif
@@ -70,6 +70,7 @@
 #include <boost/filesystem/fstream.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/thread.hpp>
+#include <boost/interprocess/sync/file_lock.hpp>
 #include <boost/interprocess/sync/interprocess_mutex.hpp>
 #include <boost/interprocess/sync/interprocess_recursive_mutex.hpp>
 #include <boost/date_time/gregorian/gregorian_types.hpp>
@@ -99,6 +100,7 @@
 #include <net/if.h>
 #include <ifaddrs.h>
 #include <fcntl.h>
+#include <signal.h>
 #endif
 #ifdef BSD
 #include <netinet/in.h>

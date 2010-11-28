@@ -10,7 +10,6 @@
 
 
 
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // Shutdown
@@ -55,6 +54,11 @@ void Shutdown(void* parg)
         Sleep(100);
         ExitThread(0);
     }
+}
+
+void HandleSIGTERM(int)
+{
+    fRequestShutdown = true;
 }
 
 
@@ -130,6 +134,14 @@ bool AppInit2(int argc, char* argv[])
 #ifndef __WXMSW__
     umask(077);
 #endif
+#ifndef __WXMSW__
+    // Clean shutdown on SIGTERM
+    struct sigaction sa;
+    sa.sa_handler = HandleSIGTERM;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGTERM, &sa, NULL);
+#endif
 
     //
     // Parameters
@@ -153,17 +165,34 @@ bool AppInit2(int argc, char* argv[])
             "  bitcoin [options] help              \t\t  " + _("List commands\n") +
             "  bitcoin [options] help <command>    \t\t  " + _("Get help for a command\n") +
           _("Options:\n") +
-            "  -conf=<file>    \t  " + _("Specify configuration file (default: bitcoin.conf)\n") +
-            "  -gen            \t  " + _("Generate coins\n") +
-            "  -gen=0          \t  " + _("Don't generate coins\n") +
-            "  -min            \t  " + _("Start minimized\n") +
-            "  -datadir=<dir>  \t  " + _("Specify data directory\n") +
-            "  -proxy=<ip:port>\t  " + _("Connect through socks4 proxy\n") +
-            "  -addnode=<ip>   \t  " + _("Add a node to connect to\n") +
-            "  -connect=<ip>   \t  " + _("Connect only to the specified node\n") +
-            "  -server         \t  " + _("Accept command line and JSON-RPC commands\n") +
-            "  -daemon         \t  " + _("Run in the background as a daemon and accept commands\n") +
-            "  -?              \t  " + _("This help message\n");
+            "  -conf=<file>     \t\t  " + _("Specify configuration file (default: bitcoin.conf)\n") +
+            "  -gen             \t\t  " + _("Generate coins\n") +
+            "  -gen=0           \t\t  " + _("Don't generate coins\n") +
+            "  -min             \t\t  " + _("Start minimized\n") +
+            "  -datadir=<dir>   \t\t  " + _("Specify data directory\n") +
+            "  -proxy=<ip:port> \t  "   + _("Connect through socks4 proxy\n") +
+            "  -addnode=<ip>    \t  "   + _("Add a node to connect to\n") +
+            "  -connect=<ip>    \t\t  " + _("Connect only to the specified node\n") +
+            "  -server          \t\t  " + _("Accept command line and JSON-RPC commands\n") +
+            "  -daemon          \t\t  " + _("Run in the background as a daemon and accept commands\n") +
+            "  -testnet         \t\t  " + _("Use the test network\n") +
+            "  -rpcuser=<user>  \t  "   + _("Username for JSON-RPC connections\n") +
+            "  -rpcpassword=<pw>\t  "   + _("Password for JSON-RPC connections\n") +
+            "  -rpcport=<port>  \t\t  " + _("Listen for JSON-RPC connections on <port>\n") +
+            "  -rpcallowip=<ip> \t\t  " + _("Allow JSON-RPC connections from specified IP address\n") +
+            "  -rpcconnect=<ip> \t  "   + _("Send commands to node running on <ip>\n");
+
+#ifdef USE_SSL
+        strUsage += string() +
+            _("\nSSL options: (see the Bitcoin Wiki for SSL setup instructions)\n") +
+            "  -rpcssl=1                             \t  " + _("Use OpenSSL (https) for JSON-RPC connections\n") +
+            "  -rpcsslcertificatchainfile=<file.cert>\t  " + _("Server certificate file (default: server.cert)\n") +
+            "  -rpcsslprivatekeyfile=<file.pem>      \t  " + _("Server private key (default: server.pem)\n") +
+            "  -rpcsslciphers=<ciphers>              \t  " + _("Acceptable ciphers (default: TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!AH:!3DES:@STRENGTH)\n");
+#endif
+
+        strUsage += string() +
+            "  -?               \t\t  " + _("This help message\n");
 
 #if defined(__WXMSW__) && defined(GUI)
         // Tabs make the columns line up in the message box
@@ -182,6 +211,9 @@ bool AppInit2(int argc, char* argv[])
     if (mapArgs.count("-printtodebugger"))
         fPrintToDebugger = true;
 
+    if (mapArgs.count("-testnet"))
+        fTestNet = true;
+
     if (fCommandLine)
     {
         int ret = CommandLineRPC(argc, argv);
@@ -191,7 +223,7 @@ bool AppInit2(int argc, char* argv[])
     if (!fDebug && !pszSetDataDir[0])
         ShrinkDebugFile();
     printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-    printf("Bitcoin version %d.%d.%d%s beta\n", VERSION/10000, (VERSION/100)%100, VERSION%100, pszSubVer);
+    printf("Bitcoin version %s%s beta\n", FormatVersion(VERSION).c_str(), pszSubVer);
 #ifdef GUI
     printf("OS version %s\n", ((string)wxGetOsDescription()).c_str());
     printf("System default language is %d %s\n", g_locale.GetSystemLanguage(), ((string)g_locale.GetSysName()).c_str());
@@ -212,8 +244,7 @@ bool AppInit2(int argc, char* argv[])
     // Required to protect the database files if we're going to keep deleting log.*
     //
 #if defined(__WXMSW__) && defined(GUI)
-    // todo: wxSingleInstanceChecker wasn't working on Linux, never deleted its lock file
-    //  maybe should go by whether successfully bind port 8333 instead
+    // wxSingleInstanceChecker doesn't work on Linux
     wxString strMutexName = wxString("bitcoin_running.") + getenv("HOMEPATH");
     for (int i = 0; i < strMutexName.size(); i++)
         if (!isalnum(strMutexName[i]))
@@ -225,7 +256,6 @@ bool AppInit2(int argc, char* argv[])
         unsigned int nStart = GetTime();
         loop
         {
-            // TODO: find out how to do this in Linux, or replace with wxWidgets commands
             // Show the previous instance and exit
             HWND hwndPrev = FindWindowA("wxWindowClassNR", "Bitcoin");
             if (hwndPrev)
@@ -249,8 +279,18 @@ bool AppInit2(int argc, char* argv[])
     }
 #endif
 
+    // Make sure only a single bitcoin process is using the data directory.
+    string strLockFile = GetDataDir() + "/.lock";
+    FILE* file = fopen(strLockFile.c_str(), "a"); // empty lock file; created if it doesn't exist.
+    fclose(file);
+    static boost::interprocess::file_lock lock(strLockFile.c_str());
+    if (!lock.try_lock())
+    {
+        wxMessageBox(strprintf(_("Cannot obtain a lock on data directory %s.  Bitcoin is probably already running."), GetDataDir().c_str()), "Bitcoin");
+        return false;
+    }
+
     // Bind to the port early so we can tell if another instance is already running.
-    // This is a backup to wxSingleInstanceChecker, which doesn't work on Linux.
     string strErrors;
     if (!BindListenPort(strErrors))
     {
