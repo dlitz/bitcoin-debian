@@ -4,13 +4,13 @@ Priority: optional
 Maintainer: Jonas Smedegaard <dr@jones.dk>
 Build-Depends: cdbs (>= 0.4.70~),
  debhelper (>= 6),
- devscripts (>= 2.10.7~),
  dh-buildinfo,
+ devscripts (>= 2.10.7~),
  libwxgtk2.8-dev,
  libboost-system-dev,
- libdb-dev,
- libdb4.8++-dev | libdb++-dev,
- libssl-dev
+ libdb4.7++-dev,
+ libssl-dev,
+ libcrypto++-dev
 Standards-Version: 3.9.0
 Homepage: http://www.bitcoin.org/
 Vcs-Git: git://git.debian.org/git/collab-maint/bitcoin
