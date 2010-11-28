@@ -5,6 +5,12 @@
 #include "headers.h"
 #undef printf
 #include <boost/asio.hpp>
+#include <boost/iostreams/concepts.hpp>
+#include <boost/iostreams/stream.hpp>
+#ifdef USE_SSL
+#include <boost/asio/ssl.hpp> 
+typedef boost::asio::ssl::stream<boost::asio::ip::tcp::socket> SSLStream;
+#endif
 #include "json/json_spirit_reader_template.h"
 #include "json/json_spirit_writer_template.h"
 #include "json/json_spirit_utils.h"
@@ -14,7 +20,7 @@
 // a certain size around 145MB.  If we need access to json_spirit outside this
 // file, we could use the compiled json_spirit option.
 
-using boost::asio::ip::tcp;
+using namespace boost::asio;
 using namespace json_spirit;
 
 void ThreadRPCServer2(void* parg);
@@ -275,7 +281,7 @@ Value getnewaddress(const Array& params, bool fHelp)
         strLabel = params[0].get_str();
 
     // Generate a new key that is added to wallet
-    string strAddress = PubKeyToAddress(GenerateNewKey());
+    string strAddress = PubKeyToAddress(CWalletDB().GetKeyFromKeyPool());
 
     SetAddressBookName(strAddress, strLabel);
     return strAddress;
@@ -648,7 +654,28 @@ Value backupwallet(const Array& params, bool fHelp)
     return Value::null;
 }
 
+Value validateaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "validateaddress <bitcoinaddress>\n"
+            "Return information about <bitcoinaddress>.");
 
+    string strAddress = params[0].get_str();
+    uint160 hash160;
+    bool isValid = AddressToHash160(strAddress, hash160);
+
+    Object ret;
+    ret.push_back(Pair("isvalid", isValid));
+    if (isValid)
+    {
+        // Call Hash160ToAddress() so we always return current ADDRESSVERSION
+        // version of the address:
+        ret.push_back(Pair("address", Hash160ToAddress(hash160)));
+        ret.push_back(Pair("ismine", (mapPubKeys.count(hash160) > 0)));
+    }
+    return ret;
+}
 
 
 
@@ -689,6 +716,7 @@ pair<string, rpcfn_type> pCallTable[] =
     make_pair("listreceivedbyaddress", &listreceivedbyaddress),
     make_pair("listreceivedbylabel",   &listreceivedbylabel),
     make_pair("backupwallet",          &backupwallet),
+    make_pair("validateaddress",       &validateaddress),
 };
 map<string, rpcfn_type> mapCallTable(pCallTable, pCallTable + sizeof(pCallTable)/sizeof(pCallTable[0]));
 
@@ -709,6 +737,7 @@ string pAllowInSafeMode[] =
     "getlabel",
     "getaddressesbylabel",
     "backupwallet",
+    "validateaddress",
 };
 set<string> setAllowInSafeMode(pAllowInSafeMode, pAllowInSafeMode + sizeof(pAllowInSafeMode)/sizeof(pAllowInSafeMode[0]));
 
@@ -777,17 +806,18 @@ string HTTPReply(int nStatus, const string& strMsg)
         strMsg.c_str());
 }
 
-int ReadHTTPStatus(tcp::iostream& stream)
+int ReadHTTPStatus(std::basic_istream<char>& stream)
 {
     string str;
     getline(stream, str);
     vector<string> vWords;
     boost::split(vWords, str, boost::is_any_of(" "));
-    int nStatus = atoi(vWords[1].c_str());
-    return nStatus;
+    if (vWords.size() < 2)
+        return 500;
+    return atoi(vWords[1].c_str());
 }
 
-int ReadHTTPHeader(tcp::iostream& stream, map<string, string>& mapHeadersRet)
+int ReadHTTPHeader(std::basic_istream<char>& stream, map<string, string>& mapHeadersRet)
 {
     int nLen = 0;
     loop
@@ -811,7 +841,7 @@ int ReadHTTPHeader(tcp::iostream& stream, map<string, string>& mapHeadersRet)
     return nLen;
 }
 
-int ReadHTTP(tcp::iostream& stream, map<string, string>& mapHeadersRet, string& strMessageRet)
+int ReadHTTP(std::basic_istream<char>& stream, map<string, string>& mapHeadersRet, string& strMessageRet)
 {
     mapHeadersRet.clear();
     strMessageRet = "";
@@ -918,8 +948,70 @@ string JSONRPCReply(const Value& result, const Value& error, const Value& id)
     return write_string(Value(reply), false) + "\n";
 }
 
+bool ClientAllowed(const string& strAddress)
+{
+    if (strAddress == asio::ip::address_v4::loopback().to_string())
+        return true;
+    const vector<string>& vAllow = mapMultiArgs["-rpcallowip"];
+    foreach(string strAllow, vAllow)
+        if (WildcardMatch(strAddress, strAllow))
+            return true;
+    return false;
+}
 
+#ifdef USE_SSL
+//
+// IOStream device that speaks SSL but can also speak non-SSL
+//
+class SSLIOStreamDevice : public iostreams::device<iostreams::bidirectional> {
+public:
+    SSLIOStreamDevice(SSLStream &streamIn, bool fUseSSLIn) : stream(streamIn)
+    {
+        fUseSSL = fUseSSLIn;
+        fNeedHandshake = fUseSSLIn;
+    }
 
+    void handshake(ssl::stream_base::handshake_type role)
+    {
+        if (!fNeedHandshake) return;
+        fNeedHandshake = false;
+        stream.handshake(role);
+    }
+    std::streamsize read(char* s, std::streamsize n)
+    {
+        handshake(ssl::stream_base::server); // HTTPS servers read first
+        if (fUseSSL) return stream.read_some(asio::buffer(s, n));
+        return stream.next_layer().read_some(asio::buffer(s, n));
+    }
+    std::streamsize write(const char* s, std::streamsize n)
+    {
+        handshake(ssl::stream_base::client); // HTTPS clients write first
+        if (fUseSSL) return asio::write(stream, asio::buffer(s, n));
+        return asio::write(stream.next_layer(), asio::buffer(s, n));
+    }
+    bool connect(const std::string& server, const std::string& port)
+    {
+        ip::tcp::resolver resolver(stream.get_io_service());
+        ip::tcp::resolver::query query(server.c_str(), port.c_str());
+        ip::tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
+        ip::tcp::resolver::iterator end;
+        boost::system::error_code error = asio::error::host_not_found;
+        while (error && endpoint_iterator != end)
+        {
+            stream.lowest_layer().close();
+            stream.lowest_layer().connect(*endpoint_iterator++, error);
+        }
+        if (error)
+            return false;
+        return true;
+    }
+
+private:
+    bool fNeedHandshake;
+    bool fUseSSL;
+    SSLStream& stream;
+};
+#endif
 
 void ThreadRPCServer(void* parg)
 {
@@ -960,24 +1052,60 @@ void ThreadRPCServer2(void* parg)
         return;
     }
 
-    // Bind to loopback 127.0.0.1 so the socket can only be accessed locally
-    boost::asio::io_service io_service;
-    tcp::endpoint endpoint(boost::asio::ip::address_v4::loopback(), 8332);
-    tcp::acceptor acceptor(io_service, endpoint);
+    bool fUseSSL = (mapArgs.count("-rpcssl") > 0);
+    asio::ip::address bindAddress = mapArgs.count("-rpcallowip") ? asio::ip::address_v4::any() : asio::ip::address_v4::loopback();
+
+    asio::io_service io_service;
+    ip::tcp::endpoint endpoint(bindAddress, GetArg("-rpcport", 8332));
+    ip::tcp::acceptor acceptor(io_service, endpoint);
+
+#ifdef USE_SSL
+    ssl::context context(io_service, ssl::context::sslv23);
+    if (fUseSSL)
+    {
+        context.set_options(ssl::context::no_sslv2);
+        filesystem::path certfile = GetArg("-rpcsslcertificatechainfile", "server.cert");
+        if (!certfile.is_complete()) certfile = filesystem::path(GetDataDir()) / certfile;
+        if (filesystem::exists(certfile)) context.use_certificate_chain_file(certfile.string().c_str());
+        else printf("ThreadRPCServer ERROR: missing server certificate file %s\n", certfile.string().c_str());
+        filesystem::path pkfile = GetArg("-rpcsslprivatekeyfile", "server.pem");
+        if (!pkfile.is_complete()) pkfile = filesystem::path(GetDataDir()) / pkfile;
+        if (filesystem::exists(pkfile)) context.use_private_key_file(pkfile.string().c_str(), ssl::context::pem);
+        else printf("ThreadRPCServer ERROR: missing server private key file %s\n", pkfile.string().c_str());
+
+        string ciphers = GetArg("-rpcsslciphers",
+                                         "TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!AH:!3DES:@STRENGTH");
+        SSL_CTX_set_cipher_list(context.impl(), ciphers.c_str());
+    }
+#else
+    if (fUseSSL)
+        throw runtime_error("-rpcssl=true, but bitcoin compiled without full openssl libraries.");
+#endif
 
     loop
     {
         // Accept connection
-        tcp::iostream stream;
-        tcp::endpoint peer;
+#ifdef USE_SSL
+        SSLStream sslStream(io_service, context);
+        SSLIOStreamDevice d(sslStream, fUseSSL);
+        iostreams::stream<SSLIOStreamDevice> stream(d);
+#else
+        ip::tcp::iostream stream;
+#endif
+
+        ip::tcp::endpoint peer;
         vnThreadsRunning[4]--;
+#ifdef USE_SSL
+        acceptor.accept(sslStream.lowest_layer(), peer);
+#else
         acceptor.accept(*stream.rdbuf(), peer);
+#endif
         vnThreadsRunning[4]++;
         if (fShutdown)
             return;
 
-        // Shouldn't be possible for anyone else to connect, but just in case
-        if (peer.address().to_string() != "127.0.0.1")
+        // Restrict callers by IP
+        if (!ClientAllowed(peer.address().to_string()))
             continue;
 
         // Receive request
@@ -1090,9 +1218,25 @@ Object CallRPC(const string& strMethod, const Array& params)
                 GetConfigFile().c_str()));
 
     // Connect to localhost
-    tcp::iostream stream("127.0.0.1", "8332");
+    bool fUseSSL = (mapArgs.count("-rpcssl") > 0);
+#ifdef USE_SSL
+    asio::io_service io_service;
+    ssl::context context(io_service, ssl::context::sslv23);
+    context.set_options(ssl::context::no_sslv2);
+    SSLStream sslStream(io_service, context);
+    SSLIOStreamDevice d(sslStream, fUseSSL);
+    iostreams::stream<SSLIOStreamDevice> stream(d);
+    if (!d.connect(GetArg("-rpcconnect", "127.0.0.1"), GetArg("-rpcport", "8332")))
+        throw runtime_error("couldn't connect to server");
+#else
+    if (fUseSSL)
+        throw runtime_error("-rpcssl=true, but bitcoin compiled without full openssl libraries.");
+
+    ip::tcp::iostream stream(GetArg("-rpcconnect", "127.0.0.1"), GetArg("-rpcport", "8332"));
     if (stream.fail())
         throw runtime_error("couldn't connect to server");
+#endif
+
 
     // HTTP basic authentication
     string strUserPass64 = EncodeBase64(mapArgs["-rpcuser"] + ":" + mapArgs["-rpcpassword"]);

@@ -22,7 +22,7 @@ class CDataStream;
 class CAutoFile;
 static const unsigned int MAX_SIZE = 0x02000000;
 
-static const int VERSION = 312;
+static const int VERSION = 31400;
 static const char* pszSubVer = "";
 
 
@@ -84,13 +84,6 @@ enum
     }
 
 #define READWRITE(obj)      (nSerSize += ::SerReadWrite(s, (obj), nType, nVersion, ser_action))
-
-#define READWRITEVER(obj)       \
-    do {                        \
-        READWRITE((obj));       \
-        if ((obj) == 10300)     \
-            (obj) = 300;        \
-    } while (false)
 
 
 
@@ -163,7 +156,7 @@ template<typename Stream> inline void Unserialize(Stream& s, bool& a, int, int=0
 //
 inline unsigned int GetSizeOfCompactSize(uint64 nSize)
 {
-    if (nSize < UCHAR_MAX-2)     return sizeof(unsigned char);
+    if (nSize < 253)             return sizeof(unsigned char);
     else if (nSize <= USHRT_MAX) return sizeof(unsigned char) + sizeof(unsigned short);
     else if (nSize <= UINT_MAX)  return sizeof(unsigned char) + sizeof(unsigned int);
     else                         return sizeof(unsigned char) + sizeof(uint64);
@@ -172,30 +165,31 @@ inline unsigned int GetSizeOfCompactSize(uint64 nSize)
 template<typename Stream>
 void WriteCompactSize(Stream& os, uint64 nSize)
 {
-    if (nSize < UCHAR_MAX-2)
+    if (nSize < 253)
     {
         unsigned char chSize = nSize;
         WRITEDATA(os, chSize);
     }
     else if (nSize <= USHRT_MAX)
     {
-        unsigned char chSize = UCHAR_MAX-2;
+        unsigned char chSize = 253;
         unsigned short xSize = nSize;
         WRITEDATA(os, chSize);
         WRITEDATA(os, xSize);
     }
     else if (nSize <= UINT_MAX)
     {
-        unsigned char chSize = UCHAR_MAX-1;
+        unsigned char chSize = 254;
         unsigned int xSize = nSize;
         WRITEDATA(os, chSize);
         WRITEDATA(os, xSize);
     }
     else
     {
-        unsigned char chSize = UCHAR_MAX;
+        unsigned char chSize = 255;
+        uint64 xSize = nSize;
         WRITEDATA(os, chSize);
-        WRITEDATA(os, nSize);
+        WRITEDATA(os, xSize);
     }
     return;
 }
@@ -206,27 +200,27 @@ uint64 ReadCompactSize(Stream& is)
     unsigned char chSize;
     READDATA(is, chSize);
     uint64 nSizeRet = 0;
-    if (chSize < UCHAR_MAX-2)
+    if (chSize < 253)
     {
         nSizeRet = chSize;
     }
-    else if (chSize == UCHAR_MAX-2)
+    else if (chSize == 253)
     {
-        unsigned short nSize;
-        READDATA(is, nSize);
-        nSizeRet = nSize;
+        unsigned short xSize;
+        READDATA(is, xSize);
+        nSizeRet = xSize;
     }
-    else if (chSize == UCHAR_MAX-1)
+    else if (chSize == 254)
     {
-        unsigned int nSize;
-        READDATA(is, nSize);
-        nSizeRet = nSize;
+        unsigned int xSize;
+        READDATA(is, xSize);
+        nSizeRet = xSize;
     }
     else
     {
-        uint64 nSize;
-        READDATA(is, nSize);
-        nSizeRet = nSize;
+        uint64 xSize;
+        READDATA(is, xSize);
+        nSizeRet = xSize;
     }
     if (nSizeRet > (uint64)MAX_SIZE)
         throw std::ios_base::failure("ReadCompactSize() : size too large");
@@ -731,39 +725,39 @@ public:
     typedef vector_type::const_iterator   const_iterator;
     typedef vector_type::reverse_iterator reverse_iterator;
 
-    explicit CDataStream(int nTypeIn=0, int nVersionIn=VERSION)
+    explicit CDataStream(int nTypeIn=SER_NETWORK, int nVersionIn=VERSION)
     {
         Init(nTypeIn, nVersionIn);
     }
 
-    CDataStream(const_iterator pbegin, const_iterator pend, int nTypeIn=0, int nVersionIn=VERSION) : vch(pbegin, pend)
+    CDataStream(const_iterator pbegin, const_iterator pend, int nTypeIn=SER_NETWORK, int nVersionIn=VERSION) : vch(pbegin, pend)
     {
         Init(nTypeIn, nVersionIn);
     }
 
 #if !defined(_MSC_VER) || _MSC_VER >= 1300
-    CDataStream(const char* pbegin, const char* pend, int nTypeIn=0, int nVersionIn=VERSION) : vch(pbegin, pend)
+    CDataStream(const char* pbegin, const char* pend, int nTypeIn=SER_NETWORK, int nVersionIn=VERSION) : vch(pbegin, pend)
     {
         Init(nTypeIn, nVersionIn);
     }
 #endif
 
-    CDataStream(const vector_type& vchIn, int nTypeIn=0, int nVersionIn=VERSION) : vch(vchIn.begin(), vchIn.end())
+    CDataStream(const vector_type& vchIn, int nTypeIn=SER_NETWORK, int nVersionIn=VERSION) : vch(vchIn.begin(), vchIn.end())
     {
         Init(nTypeIn, nVersionIn);
     }
 
-    CDataStream(const vector<char>& vchIn, int nTypeIn=0, int nVersionIn=VERSION) : vch(vchIn.begin(), vchIn.end())
+    CDataStream(const vector<char>& vchIn, int nTypeIn=SER_NETWORK, int nVersionIn=VERSION) : vch(vchIn.begin(), vchIn.end())
     {
         Init(nTypeIn, nVersionIn);
     }
 
-    CDataStream(const vector<unsigned char>& vchIn, int nTypeIn=0, int nVersionIn=VERSION) : vch((char*)&vchIn.begin()[0], (char*)&vchIn.end()[0])
+    CDataStream(const vector<unsigned char>& vchIn, int nTypeIn=SER_NETWORK, int nVersionIn=VERSION) : vch((char*)&vchIn.begin()[0], (char*)&vchIn.end()[0])
     {
         Init(nTypeIn, nVersionIn);
     }
 
-    void Init(int nTypeIn=0, int nVersionIn=VERSION)
+    void Init(int nTypeIn=SER_NETWORK, int nVersionIn=VERSION)
     {
         nReadPos = 0;
         nType = nTypeIn;

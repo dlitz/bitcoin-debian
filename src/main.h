@@ -15,13 +15,13 @@ class CWalletTx;
 class CKeyItem;
 
 static const unsigned int MAX_BLOCK_SIZE = 1000000;
+static const unsigned int MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/2;
 static const int MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50;
 static const int64 COIN = 100000000;
 static const int64 CENT = 1000000;
 static const int64 MAX_MONEY = 21000000 * COIN;
 inline bool MoneyRange(int64 nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 static const int COINBASE_MATURITY = 100;
-static const CBigNum bnProofOfWorkLimit(~uint256(0) >> 32);
 
 
 
@@ -30,7 +30,8 @@ static const CBigNum bnProofOfWorkLimit(~uint256(0) >> 32);
 
 extern CCriticalSection cs_main;
 extern map<uint256, CBlockIndex*> mapBlockIndex;
-extern const uint256 hashGenesisBlock;
+extern uint256 hashGenesisBlock;
+extern CBigNum bnProofOfWorkLimit;
 extern CBlockIndex* pindexGenesisBlock;
 extern int nBestHeight;
 extern CBigNum bnBestChainWork;
@@ -75,8 +76,8 @@ bool ProcessMessages(CNode* pfrom);
 bool ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv);
 bool SendMessages(CNode* pto, bool fSendTrickle);
 int64 GetBalance();
-bool CreateTransaction(CScript scriptPubKey, int64 nValue, CWalletTx& wtxNew, CKey& keyRet, int64& nFeeRequiredRet);
-bool CommitTransaction(CWalletTx& wtxNew, const CKey& key);
+bool CreateTransaction(CScript scriptPubKey, int64 nValue, CWalletTx& wtxNew, CReserveKey& reservekey, int64& nFeeRequiredRet);
+bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
 bool BroadcastTransaction(CWalletTx& wtxNew);
 string SendMoney(CScript scriptPubKey, int64 nValue, CWalletTx& wtxNew, bool fAskFee=false);
 string SendMoneyToBitcoinAddress(string strAddress, int64 nValue, CWalletTx& wtxNew, bool fAskFee=false);
@@ -194,7 +195,7 @@ public:
 
     string ToString() const
     {
-        return strprintf("COutPoint(%s, %d)", hash.ToString().substr(0,6).c_str(), n);
+        return strprintf("COutPoint(%s, %d)", hash.ToString().substr(0,10).c_str(), n);
     }
 
     void print() const
@@ -360,7 +361,7 @@ public:
     {
         if (scriptPubKey.size() < 6)
             return "CTxOut(error)";
-        return strprintf("CTxOut(nValue=%"PRI64d".%08"PRI64d", scriptPubKey=%s)", nValue / COIN, nValue % COIN, scriptPubKey.ToString().substr(0,24).c_str());
+        return strprintf("CTxOut(nValue=%"PRI64d".%08"PRI64d", scriptPubKey=%s)", nValue / COIN, nValue % COIN, scriptPubKey.ToString().substr(0,30).c_str());
     }
 
     void print() const
@@ -468,44 +469,6 @@ public:
         return (vin.size() == 1 && vin[0].prevout.IsNull());
     }
 
-    bool CheckTransaction() const
-    {
-        // Basic checks that don't depend on any context
-        if (vin.empty() || vout.empty())
-            return error("CTransaction::CheckTransaction() : vin or vout empty");
-
-        // Size limits
-        if (::GetSerializeSize(*this, SER_NETWORK) > MAX_SIZE)
-            return error("CTransaction::CheckTransaction() : size limits failed");
-
-        // Check for negative or overflow output values
-        int64 nValueOut = 0;
-        foreach(const CTxOut& txout, vout)
-        {
-            if (txout.nValue < 0)
-                return error("CTransaction::CheckTransaction() : txout.nValue negative");
-            if (txout.nValue > MAX_MONEY)
-                return error("CTransaction::CheckTransaction() : txout.nValue too high");
-            nValueOut += txout.nValue;
-            if (!MoneyRange(nValueOut))
-                return error("CTransaction::CheckTransaction() : txout total out of range");
-        }
-
-        if (IsCoinBase())
-        {
-            if (vin[0].scriptSig.size() < 2 || vin[0].scriptSig.size() > 100)
-                return error("CTransaction::CheckTransaction() : coinbase script size");
-        }
-        else
-        {
-            foreach(const CTxIn& txin, vin)
-                if (txin.prevout.IsNull())
-                    return error("CTransaction::CheckTransaction() : prevout is null");
-        }
-
-        return true;
-    }
-
     int GetSigOpCount() const
     {
         int n = 0;
@@ -564,15 +527,16 @@ public:
     {
         // Base fee is 1 cent per kilobyte
         unsigned int nBytes = ::GetSerializeSize(*this, SER_NETWORK);
+        unsigned int nNewBlockSize = nBlockSize + nBytes;
         int64 nMinFee = (1 + (int64)nBytes / 1000) * CENT;
 
-        // Transactions under 60K are free as long as block size is under 80K
-        // (about 27,000bc if made of 50bc inputs)
-        if (nBytes < 60000 && nBlockSize < 80000)
+        // Transactions under 25K are free as long as block size is under 40K
+        // (about 11,000bc if made of 50bc inputs)
+        if (nBytes < 25000 && nNewBlockSize < 40000)
             nMinFee = 0;
 
-        // Transactions under 3K are free as long as block size is under 200K
-        if (nBytes < 3000 && nBlockSize < 200000)
+        // Transactions under 3K are free as long as block size is under 50K
+        if (nBytes < 3000 && nNewBlockSize < 50000)
             nMinFee = 0;
 
         // To limit dust spam, require a 0.01 fee if any output is less than 0.01
@@ -582,11 +546,15 @@ public:
                     nMinFee = CENT;
 
         // Raise the price as the block approaches full
-        if (MAX_BLOCK_SIZE/2 <= nBlockSize && nBlockSize < MAX_BLOCK_SIZE)
-            nMinFee *= MAX_BLOCK_SIZE / (MAX_BLOCK_SIZE - nBlockSize);
+        if (nBlockSize != 1 && nNewBlockSize >= MAX_BLOCK_SIZE_GEN/2)
+        {
+            if (nNewBlockSize >= MAX_BLOCK_SIZE_GEN)
+                return MAX_MONEY;
+            nMinFee *= MAX_BLOCK_SIZE_GEN / (MAX_BLOCK_SIZE_GEN - nNewBlockSize);
+        }
+
         if (!MoneyRange(nMinFee))
             nMinFee = MAX_MONEY;
-
         return nMinFee;
     }
 
@@ -631,7 +599,7 @@ public:
     {
         string str;
         str += strprintf("CTransaction(hash=%s, ver=%d, vin.size=%d, vout.size=%d, nLockTime=%d)\n",
-            GetHash().ToString().substr(0,6).c_str(),
+            GetHash().ToString().substr(0,10).c_str(),
             nVersion,
             vin.size(),
             vout.size(),
@@ -649,20 +617,17 @@ public:
     }
 
 
-
     bool DisconnectInputs(CTxDB& txdb);
     bool ConnectInputs(CTxDB& txdb, map<uint256, CTxIndex>& mapTestPool, CDiskTxPos posThisTx,
                        CBlockIndex* pindexBlock, int64& nFees, bool fBlock, bool fMiner, int64 nMinFee=0);
     bool ClientConnectInputs();
-
+    bool CheckTransaction() const;
     bool AcceptToMemoryPool(CTxDB& txdb, bool fCheckInputs=true, bool* pfMissingInputs=NULL);
-
     bool AcceptToMemoryPool(bool fCheckInputs=true, bool* pfMissingInputs=NULL)
     {
         CTxDB txdb("r");
         return AcceptToMemoryPool(txdb, fCheckInputs, pfMissingInputs);
     }
-
 protected:
     bool AddToMemoryPoolUnchecked();
 public:
@@ -684,9 +649,7 @@ public:
     int nIndex;
 
     // memory only
-    mutable bool fMerkleVerified;
-    mutable bool fGetCreditCached;
-    mutable int64 nGetCreditCached;
+    mutable char fMerkleVerified;
 
 
     CMerkleTx()
@@ -704,8 +667,6 @@ public:
         hashBlock = 0;
         nIndex = -1;
         fMerkleVerified = false;
-        fGetCreditCached = false;
-        nGetCreditCached = 0;
     }
 
     IMPLEMENT_SERIALIZE
@@ -716,20 +677,6 @@ public:
         READWRITE(vMerkleBranch);
         READWRITE(nIndex);
     )
-
-    int64 GetCredit(bool fUseCache=false) const
-    {
-        // Must wait until coinbase is safely deep enough in the chain before valuing it
-        if (IsCoinBase() && GetBlocksToMaturity() > 0)
-            return 0;
-
-        // GetBalance can assume transactions in mapWallet won't change
-        if (fUseCache && fGetCreditCached)
-            return nGetCreditCached;
-        nGetCreditCached = CTransaction::GetCredit();
-        fGetCreditCached = true;
-        return nGetCreditCached;
-    }
 
 
     int SetMerkleBranch(const CBlock* pblock=NULL);
@@ -761,9 +708,16 @@ public:
     char fSpent;
     //// probably need to sign the order info so know it came from payer
 
+    // memory only
+    mutable char fDebitCached;
+    mutable char fCreditCached;
+    mutable int64 nDebitCached;
+    mutable int64 nCreditCached;
+
     // memory only UI hints
     mutable unsigned int nTimeDisplayed;
     mutable int nLinesDisplayed;
+    mutable char fConfirmedDisplayed;
 
 
     CWalletTx()
@@ -787,6 +741,10 @@ public:
         nTimeReceived = 0;
         fFromMe = false;
         fSpent = false;
+        fDebitCached = false;
+        fCreditCached = false;
+        nDebitCached = 0;
+        nCreditCached = 0;
         nTimeDisplayed = 0;
         nLinesDisplayed = 0;
     }
@@ -803,6 +761,62 @@ public:
         READWRITE(fFromMe);
         READWRITE(fSpent);
     )
+
+    int64 GetDebit() const
+    {
+        if (vin.empty())
+            return 0;
+        if (fDebitCached)
+            return nDebitCached;
+        nDebitCached = CTransaction::GetDebit();
+        fDebitCached = true;
+        return nDebitCached;
+    }
+
+    int64 GetCredit(bool fUseCache=false) const
+    {
+        // Must wait until coinbase is safely deep enough in the chain before valuing it
+        if (IsCoinBase() && GetBlocksToMaturity() > 0)
+            return 0;
+
+        // GetBalance can assume transactions in mapWallet won't change
+        if (fUseCache && fCreditCached)
+            return nCreditCached;
+        nCreditCached = CTransaction::GetCredit();
+        fCreditCached = true;
+        return nCreditCached;
+    }
+
+    bool IsConfirmed() const
+    {
+        map<uint256, const CMerkleTx*> mapPrev;
+        vector<const CMerkleTx*> vWorkQueue;
+        vWorkQueue.reserve(vtxPrev.size()+1);
+        vWorkQueue.push_back(this);
+        for (int i = 0; i < vWorkQueue.size(); i++)
+        {
+            const CMerkleTx* ptx = vWorkQueue[i];
+
+            if (!ptx->IsFinal())
+                return false;
+            if (ptx->GetDepthInMainChain() >= 1)
+                return true;
+            if (ptx->GetDebit() <= 0)
+                return false;
+
+            if (mapPrev.empty())
+                foreach(const CMerkleTx& tx, vtxPrev)
+                    mapPrev[tx.GetHash()] = &tx;
+
+            foreach(const CTxIn& txin, ptx->vin)
+            {
+                if (!mapPrev.count(txin.prevout.hash))
+                    return false;
+                vWorkQueue.push_back(mapPrev[txin.prevout.hash]);
+            }
+        }
+        return true;
+    }
 
     bool WriteToDisk()
     {
@@ -1082,7 +1096,7 @@ public:
             GetHash().ToString().substr(0,20).c_str(),
             nVersion,
             hashPrevBlock.ToString().substr(0,20).c_str(),
-            hashMerkleRoot.ToString().substr(0,6).c_str(),
+            hashMerkleRoot.ToString().substr(0,10).c_str(),
             nTime, nBits, nNonce,
             vtx.size());
         for (int i = 0; i < vtx.size(); i++)
@@ -1092,12 +1106,11 @@ public:
         }
         printf("  vMerkleTree: ");
         for (int i = 0; i < vMerkleTree.size(); i++)
-            printf("%s ", vMerkleTree[i].ToString().substr(0,6).c_str());
+            printf("%s ", vMerkleTree[i].ToString().substr(0,10).c_str());
         printf("\n");
     }
 
 
-    int64 GetBlockValue(int nHeight, int64 nFees) const;
     bool DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex);
     bool ConnectBlock(CTxDB& txdb, CBlockIndex* pindex);
     bool ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions=true);
@@ -1185,9 +1198,11 @@ public:
 
     CBigNum GetBlockWork() const
     {
-        if (CBigNum().SetCompact(nBits) <= 0)
+        CBigNum bnTarget;
+        bnTarget.SetCompact(nBits);
+        if (bnTarget <= 0)
             return 0;
-        return (CBigNum(1)<<256) / (CBigNum().SetCompact(nBits)+1);
+        return (CBigNum(1)<<256) / (bnTarget+1);
     }
 
     bool IsInMainChain() const
@@ -1249,7 +1264,7 @@ public:
     {
         return strprintf("CBlockIndex(nprev=%08x, pnext=%08x, nFile=%d, nBlockPos=%-6d nHeight=%d, merkle=%s, hashBlock=%s)",
             pprev, pnext, nFile, nBlockPos, nHeight,
-            hashMerkleRoot.ToString().substr(0,6).c_str(),
+            hashMerkleRoot.ToString().substr(0,10).c_str(),
             GetBlockHash().ToString().substr(0,20).c_str());
     }
 
@@ -1469,10 +1484,10 @@ public:
     //// todo: add something to note what created it (user, getnewaddress, change)
     ////   maybe should have a map<string, string> property map
 
-    CWalletKey(int64 nTimeExpiresIn=0)
+    CWalletKey(int64 nExpires=0)
     {
-        nTimeCreated = (nTimeExpiresIn ? GetTime() : 0);
-        nTimeExpires = nTimeExpiresIn;
+        nTimeCreated = (nExpires ? GetTime() : 0);
+        nTimeExpires = nExpires;
     }
 
     IMPLEMENT_SERIALIZE

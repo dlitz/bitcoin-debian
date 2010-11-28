@@ -103,6 +103,18 @@ int InsertLine(wxListCtrl* listCtrl, void* pdata, const wxString& str0, const wx
     return nIndex;
 }
 
+void SetItemTextColour(wxListCtrl* listCtrl, int nIndex, const wxColour& colour)
+{
+    // Repaint on Windows is more flickery if the colour has ever been set,
+    // so don't want to set it unless it's different.  Default colour has
+    // alpha 0 transparent, so our colours don't match using operator==.
+    wxColour c1 = listCtrl->GetItemTextColour(nIndex);
+    if (!c1.IsOk())
+        c1 = wxColour(0,0,0);
+    if (colour.Red() != c1.Red() || colour.Green() != c1.Green() || colour.Blue() != c1.Blue())
+        listCtrl->SetItemTextColour(nIndex, colour);
+}
+
 void SetSelection(wxListCtrl* listCtrl, int nIndex)
 {
     int nSize = listCtrl->GetItemCount();
@@ -184,7 +196,7 @@ int ThreadSafeMessageBox(const string& message, const string& caption, int style
 
 bool ThreadSafeAskFee(int64 nFeeRequired, const string& strCaption, wxWindow* parent)
 {
-    if (nFeeRequired == 0 || fDaemon)
+    if (nFeeRequired < CENT || fDaemon)
         return true;
     string strMessage = strprintf(
         _("This transaction is over the size limit.  You can still send it for a fee of %s, "
@@ -434,7 +446,7 @@ int CMainFrame::GetSortIndex(const string& strSort)
 #endif
 }
 
-void CMainFrame::InsertLine(bool fNew, int nIndex, uint256 hashKey, string strSort, const wxString& str2, const wxString& str3, const wxString& str4, const wxString& str5, const wxString& str6)
+void CMainFrame::InsertLine(bool fNew, int nIndex, uint256 hashKey, string strSort, const wxColour& colour, const wxString& str2, const wxString& str3, const wxString& str4, const wxString& str5, const wxString& str6)
 {
     strSort = " " + strSort;       // leading space to workaround wx2.9.0 ubuntu 9.10 bug
     long nData = *(long*)&hashKey; //  where first char of hidden column is displayed
@@ -470,6 +482,7 @@ void CMainFrame::InsertLine(bool fNew, int nIndex, uint256 hashKey, string strSo
     m_listCtrl->SetItem(nIndex, 5, str5);
     m_listCtrl->SetItem(nIndex, 6, str6);
     m_listCtrl->SetItemData(nIndex, nData);
+    SetItemTextColour(m_listCtrl, nIndex, colour);
 }
 
 bool CMainFrame::DeleteLine(uint256 hashKey)
@@ -540,6 +553,8 @@ bool CMainFrame::InsertTransaction(const CWalletTx& wtx, bool fNew, int nIndex)
     int64 nNet = nCredit - nDebit;
     uint256 hash = wtx.GetHash();
     string strStatus = FormatTxStatus(wtx);
+    bool fConfirmed = wtx.fConfirmedDisplayed = wtx.IsConfirmed();
+    wxColour colour = (fConfirmed ? wxColour(0,0,0) : wxColour(128,128,128));
     map<string, string> mapValue = wtx.mapValue;
     wtx.nLinesDisplayed = 1;
     nListViewUpdated++;
@@ -658,12 +673,16 @@ bool CMainFrame::InsertTransaction(const CWalletTx& wtx, bool fNew, int nIndex)
             }
         }
 
-        InsertLine(fNew, nIndex, hash, strSort,
+        string strCredit = FormatMoney(nNet, true);
+        if (!fConfirmed)
+            strCredit = "[" + strCredit + "]";
+
+        InsertLine(fNew, nIndex, hash, strSort, colour,
                    strStatus,
                    nTime ? DateTimeStr(nTime) : "",
                    SingleLine(strDescription),
                    "",
-                   FormatMoney(nNet, true));
+                   strCredit);
     }
     else
     {
@@ -679,7 +698,7 @@ bool CMainFrame::InsertTransaction(const CWalletTx& wtx, bool fNew, int nIndex)
         {
             // Payment to self
             int64 nValue = wtx.vout[0].nValue;
-            InsertLine(fNew, nIndex, hash, strSort,
+            InsertLine(fNew, nIndex, hash, strSort, colour,
                        strStatus,
                        nTime ? DateTimeStr(nTime) : "",
                        _("Payment to yourself"),
@@ -738,12 +757,13 @@ bool CMainFrame::InsertTransaction(const CWalletTx& wtx, bool fNew, int nIndex)
                     nTxFee = 0;
                 }
 
-                InsertLine(fNew, nIndex, hash, strprintf("%s-%d", strSort.c_str(), nOut),
+                InsertLine(fNew, nIndex, hash, strprintf("%s-%d", strSort.c_str(), nOut), colour,
                            strStatus,
                            nTime ? DateTimeStr(nTime) : "",
                            SingleLine(strDescription),
                            FormatMoney(-nValue, true),
                            "");
+                nIndex = -1;
                 wtx.nLinesDisplayed++;
             }
         }
@@ -758,7 +778,7 @@ bool CMainFrame::InsertTransaction(const CWalletTx& wtx, bool fNew, int nIndex)
             foreach(const CTxIn& txin, wtx.vin)
                 fAllMine = fAllMine && txin.IsMine();
 
-            InsertLine(fNew, nIndex, hash, strSort,
+            InsertLine(fNew, nIndex, hash, strSort, colour,
                        strStatus,
                        nTime ? DateTimeStr(nTime) : "",
                        "",
@@ -885,13 +905,17 @@ void CMainFrame::RefreshStatusColumn()
                 continue;
             }
             CWalletTx& wtx = (*mi).second;
-            if (wtx.IsCoinBase() || wtx.GetTxTime() != wtx.nTimeDisplayed)
+            if (wtx.IsCoinBase() ||
+                wtx.GetTxTime() != wtx.nTimeDisplayed ||
+                wtx.IsConfirmed() != wtx.fConfirmedDisplayed)
             {
                 if (!InsertTransaction(wtx, false, nIndex))
                     m_listCtrl->DeleteItem(nIndex--);
             }
             else
+            {
                 m_listCtrl->SetItem(nIndex, 2, FormatTxStatus(wtx));
+            }
         }
     }
 }
@@ -1147,7 +1171,7 @@ void CMainFrame::OnButtonNew(wxCommandEvent& event)
     string strName = dialog.GetValue();
 
     // Generate new key
-    string strAddress = PubKeyToAddress(GenerateNewKey());
+    string strAddress = PubKeyToAddress(CWalletDB().GetKeyFromKeyPool());
 
     // Save
     SetAddressBookName(strAddress, strName);
@@ -1402,7 +1426,10 @@ CTxDetailsDialog::CTxDetailsDialog(wxWindow* parent, CWalletTx wtx) : CTxDetails
                 if (txout.IsMine())
                     strHTML += "<b>Credit:</b> " + FormatMoney(txout.GetCredit()) + "<br>";
 
-            strHTML += "<b>Inputs:</b><br>";
+            strHTML += "<br><b>Transaction:</b><br>";
+            strHTML += HtmlEscape(wtx.ToString(), true);
+
+            strHTML += "<br><b>Inputs:</b><br>";
             CRITICAL_BLOCK(cs_mapWallet)
             {
                 foreach(const CTxIn& txin, wtx.vin)
@@ -1421,9 +1448,6 @@ CTxDetailsDialog::CTxDetailsDialog(wxWindow* parent, CWalletTx wtx) : CTxDetails
                     }
                 }
             }
-
-            strHTML += "<br><hr><br><b>Transaction:</b><br>";
-            strHTML += HtmlEscape(wtx.ToString(), true);
         }
 
 
@@ -1772,7 +1796,7 @@ void COptionsDialog::OnButtonApply(wxCommandEvent& event)
 
 CAboutDialog::CAboutDialog(wxWindow* parent) : CAboutDialogBase(parent)
 {
-    m_staticTextVersion->SetLabel(strprintf(_("version %d.%d.%d%s beta"), VERSION/10000, (VERSION/100)%100, VERSION%100, pszSubVer));
+    m_staticTextVersion->SetLabel(strprintf(_("version %s%s beta"), FormatVersion(VERSION).c_str(), pszSubVer));
 
     // Change (c) into UTF-8 or ANSI copyright symbol
     wxString str = m_staticTextMain->GetLabel();
@@ -2186,8 +2210,12 @@ void CSendingDialog::OnReply2(CDataStream& vRecv)
         if (nRet > 0)
         {
             string strMessage;
-            vRecv >> strMessage;
-            Error(_("Transfer was not accepted"));
+            if (!vRecv.empty())
+                vRecv >> strMessage;
+            if (nRet == 2)
+                Error(_("Recipient is not accepting transactions sent by IP address"));
+            else
+                Error(_("Transfer was not accepted"));
             //// todo: enlarge the window and enable a hidden white box to put seller's message
             return;
         }
@@ -2218,9 +2246,9 @@ void CSendingDialog::OnReply2(CDataStream& vRecv)
             Error(_("Insufficient funds"));
             return;
         }
-        CKey key;
+        CReserveKey reservekey;
         int64 nFeeRequired;
-        if (!CreateTransaction(scriptPubKey, nPrice, wtx, key, nFeeRequired))
+        if (!CreateTransaction(scriptPubKey, nPrice, wtx, reservekey, nFeeRequired))
         {
             if (nPrice + nFeeRequired > GetBalance())
                 Error(strprintf(_("This is an oversized transaction that requires a transaction fee of %s"), FormatMoney(nFeeRequired).c_str()));
@@ -2260,7 +2288,7 @@ void CSendingDialog::OnReply2(CDataStream& vRecv)
             return;
 
         // Commit
-        if (!CommitTransaction(wtx, key))
+        if (!CommitTransaction(wtx, reservekey))
         {
             Error(_("The transaction was rejected.  This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here."));
             return;
@@ -2538,7 +2566,7 @@ void CAddressBookDialog::OnButtonNew(wxCommandEvent& event)
         strName = dialog.GetValue();
 
         // Generate new key
-        strAddress = PubKeyToAddress(GenerateNewKey());
+        strAddress = PubKeyToAddress(CWalletDB().GetKeyFromKeyPool());
     }
 
     // Add to list and select it
