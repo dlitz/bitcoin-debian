@@ -30,6 +30,9 @@ DEB_UPSTREAM_TARBALL_MD5 = c34c62bc5a79abdbafb1c4e9a7b3949f
 # source-less binary
 DEB_UPSTREAM_REPACKAGE_EXCLUDES += ./bin/
 
+# unneeded external project sources
+DEB_UPSTREAM_REPACKAGE_EXCLUDES += ./src/cryptopp/ ./src/json/
+
 # Silence .ico and .mo files in addition to the default debian files
 DEB_COPYRIGHT_CHECK_IGNORE_REGEX = ^./src/rc/bitcoin.ico|./locale/.*/LC_MESSAGES/.*.mo|\./debian/(changelog|copyright(|_hints|_newhints))$
 
