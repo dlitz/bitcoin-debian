@@ -1,0 +1,16 @@
+Description: Use non-local system WX library
+Author: Jonas Smedegaard <dr@jones.dk>
+Last-Update: 2010-11-28
+--- a/src/makefile.unix
++++ b/src/makefile.unix
+@@ -4,8 +4,8 @@
+ 
+ 
+ INCLUDEPATHS= \
+- -I"/usr/local/include/wx-2.9" \
+- -I"/usr/local/lib/wx/include/gtk2-unicode-debug-static-2.9"
++ -I"/usr/include/wx-2.9" \
++ -I"/usr/lib/wx/include/gtk2-unicode-debug-static-2.9"
+ 
+ # for wxWidgets 2.9.1, add -l Xxf86vm
+ WXLIBS= \

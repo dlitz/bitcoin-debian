@@ -1,0 +1,31 @@
+Description: Use system Crypto++ library
+Author: Jonas Smedegaard <dr@jones.dk>
+Last-Update: 2010-11-28
+--- a/src/makefile.unix
++++ b/src/makefile.unix
+@@ -41,9 +41,7 @@
+     obj/irc.o \
+     obj/main.o \
+     obj/rpc.o \
+-    obj/init.o \
+-    cryptopp/obj/sha.o \
+-    cryptopp/obj/cpu.o
++    obj/init.o
+ 
+ 
+ all: bitcoin
+@@ -52,8 +50,6 @@
+ obj/%.o: %.cpp $(HEADERS)
+ 	g++ -c $(CFLAGS) -DGUI -o $@ $<
+ 
+-cryptopp/obj/%.o: cryptopp/%.cpp
+-	g++ -c $(CFLAGS) -O3 -o $@ $<
+ 
+ obj/sha256.o: sha256.cpp
+ 	g++ -c $(CFLAGS) -msse2 -O3 -march=amdfam10 -o $@ $<
+@@ -72,5 +68,4 @@
+ clean:
+ 	-rm -f obj/*.o
+ 	-rm -f obj/nogui/*.o
+-	-rm -f cryptopp/obj/*.o
+ 	-rm -f headers.h.gch
