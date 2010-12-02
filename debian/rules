@@ -40,6 +40,9 @@ DEB_BUILDDIR = src
 
 DEB_MAKE_MAKEFILE = makefile.unix
 
+# Avoid GUI until wxWidget 2.9 is in Debian
+DEB_MAKE_BUILD_TARGET = bitcoind
+
 # upstream bogusly use CFLAGS for C++
 wx-cxxflags := $(shell wx-config --cxxflags)
 CFLAGS += $(wx-cxxflags)
