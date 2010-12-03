@@ -8,10 +8,10 @@ Homepage: http://www.bitcoin.org/
 Vcs-Git: git://git.debian.org/git/collab-maint/bitcoin
 Vcs-Browser: http://git.debian.org/?p=collab-maint/bitcoin.git;a=summary
 
-Package: bitcoin
+Package: bitcoin-cli
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: peer-to-peer network based anonymous digital currency
+Description: peer-to-peer network based anonymous digital currency - CLI tools
  Bitcoin is a free open source peer-to-peer electronic cash system that
  is completely decentralized, without the need for a central server or
  trusted parties.  Users hold the crypto keys to their own money and
