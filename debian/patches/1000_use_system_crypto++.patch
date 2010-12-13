@@ -3,7 +3,24 @@ Author: Jonas Smedegaard <dr@jones.dk>
 Last-Update: 2010-11-28
 --- a/src/makefile.unix
 +++ b/src/makefile.unix
-@@ -44,9 +44,7 @@
+@@ -15,6 +15,8 @@
+    -l gtk-x11-2.0 \
+    -l SM
+ 
++CRYPTOPPLIBS := $(shell pkg-config --libs libcrypto++)
++
+ # for boost 1.37, add -mt to the boost libraries
+ LIBS= \
+  -Wl,-Bstatic \
+@@ -26,6 +28,7 @@
+    -l ssl \
+    -l crypto \
+  -Wl,-Bdynamic \
++   $(CRYPTOPPLIBS) \
+    -l gthread-2.0 \
+    -l z \
+    -l dl
+@@ -44,9 +47,7 @@
      obj/irc.o \
      obj/main.o \
      obj/rpc.o \
@@ -14,7 +31,7 @@ Last-Update: 2010-11-28
  
  
  all: bitcoin
-@@ -55,8 +53,6 @@
+@@ -55,8 +56,6 @@
  obj/%.o: %.cpp $(HEADERS)
  	g++ -c $(CFLAGS) -DGUI -o $@ $<
  
@@ -23,9 +40,20 @@ Last-Update: 2010-11-28
  
  obj/sha256.o: sha256.cpp
  	g++ -c $(CFLAGS) -msse2 -O3 -march=amdfam10 -o $@ $<
-@@ -75,5 +71,4 @@
+@@ -75,5 +74,4 @@
  clean:
  	-rm -f obj/*.o
  	-rm -f obj/nogui/*.o
 -	-rm -f cryptopp/obj/*.o
  	-rm -f headers.h.gch
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -3,7 +3,7 @@
+ // file license.txt or http://www.opensource.org/licenses/mit-license.php.
+ 
+ #include "headers.h"
+-#include "cryptopp/sha.h"
++#include <cryptopp/sha.h>
+ 
+ 
+ 
