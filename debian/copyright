@@ -6,26 +6,13 @@ Source: http://sourceforge.net/projects/bitcoin/files/
 Copyright: 2009-2010, Satoshi Nakamoto <satoshin@gmx.com>
 License: Expat
 
-Files: ./src/json/*
-Copyright: 2007-2009, John W. Wilkinson
-License: Expat
-
 Files: ./src/strlcpy.h
 Copyright: 1998, Todd C. Miller <Todd.Miller@courtesan.com>
 License: ISC
 
-Files: ./src/cryptopp/*
-Copyright: None (publich domain)
-License: PD
- The following files are copyrighted by their respective original
- authors, and their use is subject to additional licenses included in
- these files.
- .
- mars.cpp - Copyright 1998 Brian Gladman.
- .
- All other files in this compilation are placed in the public domain by
- Wei Dai and other contributors.
-Comment: Upstream source do not contain a file named mars.cpp.
+Files: ./src/sha256.cpp
+Copyright: 2010, Nils Schneider
+License: Expat
 
 Files: ./debian/*
 Copyright: 2010, Jonas Smedegaard <dr@jones.dk>
