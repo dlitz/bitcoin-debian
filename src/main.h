@@ -76,13 +76,17 @@ bool ProcessMessages(CNode* pfrom);
 bool ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv);
 bool SendMessages(CNode* pto, bool fSendTrickle);
 int64 GetBalance();
-bool CreateTransaction(CScript scriptPubKey, int64 nValue, CWalletTx& wtxNew, CReserveKey& reservekey, int64& nFeeRequiredRet);
+bool CreateTransaction(CScript scriptPubKey, int64 nValue, CWalletTx& wtxNew, CReserveKey& reservekey, int64& nFeeRet);
 bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
 bool BroadcastTransaction(CWalletTx& wtxNew);
 string SendMoney(CScript scriptPubKey, int64 nValue, CWalletTx& wtxNew, bool fAskFee=false);
 string SendMoneyToBitcoinAddress(string strAddress, int64 nValue, CWalletTx& wtxNew, bool fAskFee=false);
 void GenerateBitcoins(bool fGenerate);
 void ThreadBitcoinMiner(void* parg);
+CBlock* CreateNewBlock(CReserveKey& reservekey);
+void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& nExtraNonce, int64& nPrevTime);
+void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash1);
+bool CheckWork(CBlock* pblock, CReserveKey& reservekey);
 void BitcoinMiner();
 bool CheckProofOfWork(uint256 hash, unsigned int nBits);
 bool IsInitialBlockDownload();
@@ -341,9 +345,25 @@ public:
     {
         if (!MoneyRange(nValue))
             throw runtime_error("CTxOut::GetCredit() : value out of range");
-        if (IsMine())
-            return nValue;
-        return 0;
+        return (IsMine() ? nValue : 0);
+    }
+
+    bool IsChange() const
+    {
+        // On a debit transaction, a txout that's mine but isn't in the address book is change
+        vector<unsigned char> vchPubKey;
+        if (ExtractPubKey(scriptPubKey, true, vchPubKey))
+            CRITICAL_BLOCK(cs_mapAddressBook)
+                if (!mapAddressBook.count(PubKeyToAddress(vchPubKey)))
+                    return true;
+        return false;
+    }
+
+    int64 GetChange() const
+    {
+        if (!MoneyRange(nValue))
+            throw runtime_error("CTxOut::GetChange() : value out of range");
+        return (IsChange() ? nValue : 0);
     }
 
     friend bool operator==(const CTxOut& a, const CTxOut& b)
@@ -479,12 +499,28 @@ public:
         return n;
     }
 
+    bool IsStandard() const
+    {
+        foreach(const CTxIn& txin, vin)
+            if (!txin.scriptSig.IsPushOnly())
+                return error("nonstandard txin: %s", txin.scriptSig.ToString().c_str());
+        foreach(const CTxOut& txout, vout)
+            if (!::IsStandard(txout.scriptPubKey))
+                return error("nonstandard txout: %s", txout.scriptPubKey.ToString().c_str());
+        return true;
+    }
+
     bool IsMine() const
     {
         foreach(const CTxOut& txout, vout)
             if (txout.IsMine())
                 return true;
         return false;
+    }
+
+    bool IsFromMe() const
+    {
+        return (GetDebit() > 0);
     }
 
     int64 GetDebit() const
@@ -511,6 +547,20 @@ public:
         return nCredit;
     }
 
+    int64 GetChange() const
+    {
+        if (IsCoinBase())
+            return 0;
+        int64 nChange = 0;
+        foreach(const CTxOut& txout, vout)
+        {
+            nChange += txout.GetChange();
+            if (!MoneyRange(nChange))
+                throw runtime_error("CTransaction::GetChange() : value out of range");
+        }
+        return nChange;
+    }
+
     int64 GetValueOut() const
     {
         int64 nValueOut = 0;
@@ -523,21 +573,29 @@ public:
         return nValueOut;
     }
 
-    int64 GetMinFee(unsigned int nBlockSize=1) const
+    int64 GetMinFee(unsigned int nBlockSize=1, bool fAllowFree=true) const
     {
         // Base fee is 1 cent per kilobyte
         unsigned int nBytes = ::GetSerializeSize(*this, SER_NETWORK);
         unsigned int nNewBlockSize = nBlockSize + nBytes;
         int64 nMinFee = (1 + (int64)nBytes / 1000) * CENT;
 
-        // Transactions under 25K are free as long as block size is under 40K
-        // (about 11,000bc if made of 50bc inputs)
-        if (nBytes < 25000 && nNewBlockSize < 40000)
-            nMinFee = 0;
-
-        // Transactions under 3K are free as long as block size is under 50K
-        if (nBytes < 3000 && nNewBlockSize < 50000)
-            nMinFee = 0;
+        if (fAllowFree)
+        {
+            if (nBlockSize == 1)
+            {
+                // Transactions under 10K are free
+                // (about 4500bc if made of 50bc inputs)
+                if (nBytes < 10000)
+                    nMinFee = 0;
+            }
+            else
+            {
+                // Free transaction area
+                if (nNewBlockSize < 27000)
+                    nMinFee = 0;
+            }
+        }
 
         // To limit dust spam, require a 0.01 fee if any output is less than 0.01
         if (nMinFee < CENT)
@@ -580,7 +638,6 @@ public:
         return true;
     }
 
-
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {
         return (a.nVersion  == b.nVersion &&
@@ -617,6 +674,9 @@ public:
     }
 
 
+    bool ReadFromDisk(CTxDB& txdb, COutPoint prevout, CTxIndex& txindexRet);
+    bool ReadFromDisk(CTxDB& txdb, COutPoint prevout);
+    bool ReadFromDisk(COutPoint prevout);
     bool DisconnectInputs(CTxDB& txdb);
     bool ConnectInputs(CTxDB& txdb, map<uint256, CTxIndex>& mapTestPool, CDiskTxPos posThisTx,
                        CBlockIndex* pindexBlock, int64& nFees, bool fBlock, bool fMiner, int64 nMinFee=0);
@@ -706,13 +766,15 @@ public:
     unsigned int nTimeReceived;  // time received by this node
     char fFromMe;
     char fSpent;
-    //// probably need to sign the order info so know it came from payer
+    string strFromAccount;
 
     // memory only
     mutable char fDebitCached;
     mutable char fCreditCached;
+    mutable char fChangeCached;
     mutable int64 nDebitCached;
     mutable int64 nCreditCached;
+    mutable int64 nChangeCached;
 
     // memory only UI hints
     mutable unsigned int nTimeDisplayed;
@@ -737,24 +799,39 @@ public:
 
     void Init()
     {
+        vtxPrev.clear();
+        mapValue.clear();
+        vOrderForm.clear();
         fTimeReceivedIsTxTime = false;
         nTimeReceived = 0;
         fFromMe = false;
         fSpent = false;
+        strFromAccount.clear();
         fDebitCached = false;
         fCreditCached = false;
+        fChangeCached = false;
         nDebitCached = 0;
         nCreditCached = 0;
+        nChangeCached = 0;
         nTimeDisplayed = 0;
         nLinesDisplayed = 0;
+        fConfirmedDisplayed = false;
     }
 
     IMPLEMENT_SERIALIZE
     (
+        CWalletTx* pthis = const_cast<CWalletTx*>(this);
+        if (fRead)
+            pthis->Init();
         nSerSize += SerReadWrite(s, *(CMerkleTx*)this, nType, nVersion, ser_action);
-        nVersion = this->nVersion;
         READWRITE(vtxPrev);
+
+        pthis->mapValue["fromaccount"] = pthis->strFromAccount;
         READWRITE(mapValue);
+        pthis->strFromAccount = pthis->mapValue["fromaccount"];
+        pthis->mapValue.erase("fromaccount");
+        pthis->mapValue.erase("version");
+
         READWRITE(vOrderForm);
         READWRITE(fTimeReceivedIsTxTime);
         READWRITE(nTimeReceived);
@@ -773,7 +850,7 @@ public:
         return nDebitCached;
     }
 
-    int64 GetCredit(bool fUseCache=false) const
+    int64 GetCredit(bool fUseCache=true) const
     {
         // Must wait until coinbase is safely deep enough in the chain before valuing it
         if (IsCoinBase() && GetBlocksToMaturity() > 0)
@@ -787,8 +864,63 @@ public:
         return nCreditCached;
     }
 
+    int64 GetChange() const
+    {
+        if (fChangeCached)
+            return nChangeCached;
+        nChangeCached = CTransaction::GetChange();
+        fChangeCached = true;
+        return nChangeCached;
+    }
+
+    void GetAccountAmounts(string strAccount, const set<CScript>& setPubKey,
+                           int64& nGenerated, int64& nReceived, int64& nSent, int64& nFee) const
+    {
+        nGenerated = nReceived = nSent = nFee = 0;
+
+        // Generated blocks count to account ""
+        if (IsCoinBase())
+        {
+            if (strAccount == "" && GetBlocksToMaturity() == 0)
+                nGenerated = GetCredit();
+            return;
+        }
+
+        // Received
+        foreach(const CTxOut& txout, vout)
+            if (setPubKey.count(txout.scriptPubKey))
+                nReceived += txout.nValue;
+
+        // Sent
+        if (strFromAccount == strAccount)
+        {
+            int64 nDebit = GetDebit();
+            if (nDebit > 0)
+            {
+                int64 nValueOut = GetValueOut();
+                nFee = nDebit - nValueOut;
+                nSent = nValueOut - GetChange();
+            }
+        }
+    }
+
+    bool IsFromMe() const
+    {
+        return (GetDebit() > 0);
+    }
+
     bool IsConfirmed() const
     {
+        // Quick answer in most cases
+        if (!IsFinal())
+            return false;
+        if (GetDepthInMainChain() >= 1)
+            return true;
+        if (!IsFromMe()) // using wtx's cached debit
+            return false;
+
+        // If no confirmations but it's from us, we can still
+        // consider it confirmed if all dependencies are confirmed
         map<uint256, const CMerkleTx*> mapPrev;
         vector<const CMerkleTx*> vWorkQueue;
         vWorkQueue.reserve(vtxPrev.size()+1);
@@ -801,7 +933,7 @@ public:
                 return false;
             if (ptx->GetDepthInMainChain() >= 1)
                 return true;
-            if (ptx->GetDebit() <= 0)
+            if (!ptx->IsFromMe())
                 return false;
 
             if (mapPrev.empty())
@@ -1034,14 +1166,12 @@ public:
     }
 
 
-    bool WriteToDisk(bool fWriteTransactions, unsigned int& nFileRet, unsigned int& nBlockPosRet)
+    bool WriteToDisk(unsigned int& nFileRet, unsigned int& nBlockPosRet)
     {
         // Open history file to append
         CAutoFile fileout = AppendBlockFile(nFileRet);
         if (!fileout)
             return error("CBlock::WriteToDisk() : AppendBlockFile failed");
-        if (!fWriteTransactions)
-            fileout.nType |= SER_BLOCKHEADERONLY;
 
         // Write index header
         unsigned int nSize = fileout.GetSerializeSize(*this);
@@ -1184,6 +1314,19 @@ public:
         nTime          = block.nTime;
         nBits          = block.nBits;
         nNonce         = block.nNonce;
+    }
+
+    CBlock GetBlockHeader() const
+    {
+        CBlock block;
+        block.nVersion       = nVersion;
+        if (pprev)
+            block.hashPrevBlock = pprev->GetBlockHash();
+        block.hashMerkleRoot = hashMerkleRoot;
+        block.nTime          = nTime;
+        block.nBits          = nBits;
+        block.nNonce         = nNonce;
+        return block;
     }
 
     uint256 GetBlockHash() const
@@ -1387,6 +1530,16 @@ public:
         READWRITE(vHave);
     )
 
+    void SetNull()
+    {
+        vHave.clear();
+    }
+
+    bool IsNull()
+    {
+        return vHave.empty();
+    }
+
     void Set(const CBlockIndex* pindex)
     {
         vHave.clear();
@@ -1500,6 +1653,79 @@ public:
         READWRITE(strComment);
     )
 };
+
+
+
+
+
+
+//
+// Account information.
+// Stored in wallet with key "acc"+string account name
+//
+class CAccount
+{
+public:
+    vector<unsigned char> vchPubKey;
+
+    CAccount()
+    {
+        SetNull();
+    }
+
+    void SetNull()
+    {
+        vchPubKey.clear();
+    }
+
+    IMPLEMENT_SERIALIZE
+    (
+        if (!(nType & SER_GETHASH))
+            READWRITE(nVersion);
+        READWRITE(vchPubKey);
+    )
+};
+
+
+
+//
+// Internal transfers.
+// Database key is acentry<account><counter>
+//
+class CAccountingEntry
+{
+public:
+    int64 nCreditDebit;
+    int64 nTime;
+    string strOtherAccount;
+    string strComment;
+
+    CAccountingEntry()
+    {
+        SetNull();
+    }
+
+    void SetNull()
+    {
+        nCreditDebit = 0;
+        nTime = 0;
+        strOtherAccount.clear();
+        strComment.clear();
+    }
+
+    IMPLEMENT_SERIALIZE
+    (
+        if (!(nType & SER_GETHASH))
+            READWRITE(nVersion);
+        READWRITE(nCreditDebit);
+        READWRITE(nTime);
+        READWRITE(strOtherAccount);
+        READWRITE(strComment);
+    )
+};
+
+
+
 
 
 
@@ -1654,7 +1880,7 @@ public:
     bool Cancels(const CAlert& alert) const
     {
         if (!IsInEffect())
-            false;
+            return false; // this was a no-op before 31403
         return (alert.nID <= nCancel || setCancel.count(alert.nID));
     }
 

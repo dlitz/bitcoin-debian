@@ -8,7 +8,7 @@ void ThreadFlushWalletDB(void* parg);
 
 
 unsigned int nWalletDBUpdated;
-
+uint64 nAccountingEntryNumber = 0;
 
 
 
@@ -132,6 +132,8 @@ void CDB::Close()
 
     // Flush database activity from memory pool to disk log
     unsigned int nMinutes = 0;
+    if (fReadOnly)
+        nMinutes = 1;
     if (strFile == "addr.dat")
         nMinutes = 2;
     if (strFile == "blkindex.dat" && IsInitialBlockDownload() && nBestHeight % 500 != 0)
@@ -503,6 +505,11 @@ bool CAddrDB::WriteAddress(const CAddress& addr)
     return Write(make_pair(string("addr"), addr.GetKey()), addr);
 }
 
+bool CAddrDB::EraseAddress(const CAddress& addr)
+{
+    return Erase(make_pair(string("addr"), addr.GetKey()));
+}
+
 bool CAddrDB::LoadAddresses()
 {
     CRITICAL_BLOCK(cs_mapAddresses)
@@ -554,11 +561,6 @@ bool CAddrDB::LoadAddresses()
         pcursor->close();
 
         printf("Loaded %d addresses\n", mapAddresses.size());
-
-        // Fix for possible bug that manifests in mapAddresses.count in irc.cpp,
-        // just need to call count here and it doesn't happen there.  The bug was the
-        // pack pragma in irc.cpp and has been fixed, but I'm not in a hurry to delete this.
-        mapAddresses.count(vector<unsigned char>(18));
     }
 
     return true;
@@ -579,10 +581,82 @@ bool LoadAddresses()
 static set<int64> setKeyPool;
 static CCriticalSection cs_setKeyPool;
 
+bool CWalletDB::ReadAccount(const string& strAccount, CAccount& account)
+{
+    account.SetNull();
+    return Read(make_pair(string("acc"), strAccount), account);
+}
+
+bool CWalletDB::WriteAccount(const string& strAccount, const CAccount& account)
+{
+    return Write(make_pair(string("acc"), strAccount), account);
+}
+
+bool CWalletDB::WriteAccountingEntry(const string& strAccount, const CAccountingEntry& acentry)
+{
+    return Write(make_tuple(string("acentry"), strAccount, ++nAccountingEntryNumber), acentry);
+}
+
+int64 CWalletDB::GetAccountCreditDebit(const string& strAccount)
+{
+    list<CAccountingEntry> entries;
+    ListAccountCreditDebit(strAccount, entries);
+
+    int64 nCreditDebit = 0;
+    foreach (const CAccountingEntry& entry, entries)
+        nCreditDebit += entry.nCreditDebit;
+
+    return nCreditDebit;
+}
+
+void CWalletDB::ListAccountCreditDebit(const string& strAccount, list<CAccountingEntry>& entries)
+{
+    int64 nCreditDebit = 0;
+
+    Dbc* pcursor = GetCursor();
+    if (!pcursor)
+        throw runtime_error("CWalletDB::ListAccountCreditDebit() : cannot create DB cursor");
+    unsigned int fFlags = DB_SET_RANGE;
+    loop
+    {
+        // Read next record
+        CDataStream ssKey;
+        if (fFlags == DB_SET_RANGE)
+            ssKey << make_tuple(string("acentry"), strAccount, uint64(0));
+        CDataStream ssValue;
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
+        fFlags = DB_NEXT;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0)
+        {
+            pcursor->close();
+            throw runtime_error("CWalletDB::ListAccountCreditDebit() : error scanning DB");
+        }
+
+        // Unserialize
+        string strType;
+        ssKey >> strType;
+        if (strType != "acentry")
+            break;
+        string strAccountName;
+        ssKey >> strAccountName;
+        if (strAccountName != strAccount)
+            break;
+
+        CAccountingEntry acentry;
+        ssValue >> acentry;
+        entries.push_back(acentry);
+    }
+
+    pcursor->close();
+}
+
 bool CWalletDB::LoadWallet()
 {
     vchDefaultKey.clear();
     int nFileVersion = 0;
+    vector<uint256> vWalletUpgrade;
 
     // Modify defaults
 #ifndef __WXMSW__
@@ -632,6 +706,25 @@ bool CWalletDB::LoadWallet()
                 if (wtx.GetHash() != hash)
                     printf("Error in wallet.dat, hash mismatch\n");
 
+                // Undo serialize changes in 31600
+                if (31404 <= wtx.fTimeReceivedIsTxTime && wtx.fTimeReceivedIsTxTime <= 31703)
+                {
+                    if (!ssValue.empty())
+                    {
+                        char fTmp;
+                        char fUnused;
+                        ssValue >> fTmp >> fUnused >> wtx.strFromAccount;
+                        printf("LoadWallet() upgrading tx ver=%d %d '%s' %s\n", wtx.fTimeReceivedIsTxTime, fTmp, wtx.strFromAccount.c_str(), hash.ToString().c_str());
+                        wtx.fTimeReceivedIsTxTime = fTmp;
+                    }
+                    else
+                    {
+                        printf("LoadWallet() repairing tx ver=%d %s\n", wtx.fTimeReceivedIsTxTime, hash.ToString().c_str());
+                        wtx.fTimeReceivedIsTxTime = 0;
+                    }
+                    vWalletUpgrade.push_back(hash);
+                }
+
                 //// debug print
                 //printf("LoadWallet  %s\n", wtx.GetHash().ToString().c_str());
                 //printf(" %12I64d  %s  %s  %s\n",
@@ -639,6 +732,15 @@ bool CWalletDB::LoadWallet()
                 //    DateTimeStrFormat("%x %H:%M:%S", wtx.GetBlockTime()).c_str(),
                 //    wtx.hashBlock.ToString().substr(0,20).c_str(),
                 //    wtx.mapValue["message"].c_str());
+            }
+            else if (strType == "acentry")
+            {
+                string strAccount;
+                ssKey >> strAccount;
+                uint64 nNumber;
+                ssKey >> nNumber;
+                if (nNumber > nAccountingEntryNumber)
+                    nAccountingEntryNumber = nNumber;
             }
             else if (strType == "key" || strType == "wkey")
             {
@@ -692,6 +794,9 @@ bool CWalletDB::LoadWallet()
         pcursor->close();
     }
 
+    foreach(uint256 hash, vWalletUpgrade)
+        WriteTx(hash, mapWallet[hash]);
+
     printf("nFileVersion = %d\n", nFileVersion);
     printf("fGenerateBitcoins = %d\n", fGenerateBitcoins);
     printf("nTransactionFee = %"PRI64d"\n", nTransactionFee);
@@ -702,14 +807,6 @@ bool CWalletDB::LoadWallet()
     printf("addrProxy = %s\n", addrProxy.ToString().c_str());
 
 
-    // The transaction fee setting won't be needed for many years to come.
-    // Setting it to zero here in case they set it to something in an earlier version.
-    if (nTransactionFee != 0)
-    {
-        nTransactionFee = 0;
-        WriteSetting("nTransactionFee", nTransactionFee);
-    }
-
     // Upgrade
     if (nFileVersion < VERSION)
     {
@@ -719,6 +816,7 @@ bool CWalletDB::LoadWallet()
 
         WriteVersion(VERSION);
     }
+
 
     return true;
 }
@@ -900,11 +998,22 @@ void CWalletDB::ReturnKey(int64 nIndex)
     printf("keypool return %"PRI64d"\n", nIndex);
 }
 
-vector<unsigned char> CWalletDB::GetKeyFromKeyPool()
+vector<unsigned char> GetKeyFromKeyPool()
 {
+    CWalletDB walletdb;
     int64 nIndex = 0;
     CKeyPool keypool;
-    ReserveKeyFromKeyPool(nIndex, keypool);
-    KeepKey(nIndex);
+    walletdb.ReserveKeyFromKeyPool(nIndex, keypool);
+    walletdb.KeepKey(nIndex);
     return keypool.vchPubKey;
+}
+
+int64 GetOldestKeyPoolTime()
+{
+    CWalletDB walletdb;
+    int64 nIndex = 0;
+    CKeyPool keypool;
+    walletdb.ReserveKeyFromKeyPool(nIndex, keypool);
+    walletdb.ReturnKey(nIndex);
+    return keypool.nTime;
 }

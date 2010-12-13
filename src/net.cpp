@@ -128,7 +128,7 @@ bool GetMyExternalIP2(const CAddress& addrConnect, const char* pszGet, const cha
     string strLine;
     while (RecvLine(hSocket, strLine))
     {
-        if (strLine.empty())
+        if (strLine.empty()) // HTTP response is separated from headers by blank line
         {
             loop
             {
@@ -137,6 +137,8 @@ bool GetMyExternalIP2(const CAddress& addrConnect, const char* pszGet, const cha
                     closesocket(hSocket);
                     return false;
                 }
+                if (pszKeyword == NULL)
+                    break;
                 if (strLine.find(pszKeyword) != -1)
                 {
                     strLine = strLine.substr(strLine.find(pszKeyword) + strlen(pszKeyword));
@@ -144,7 +146,7 @@ bool GetMyExternalIP2(const CAddress& addrConnect, const char* pszGet, const cha
                 }
             }
             closesocket(hSocket);
-            if (strLine.find("<"))
+            if (strLine.find("<") != -1)
                 strLine = strLine.substr(0, strLine.find("<"));
             strLine = strLine.substr(strspn(strLine.c_str(), " \t\n\r"));
             while (strLine.size() > 0 && isspace(strLine[strLine.size()-1]))
@@ -176,26 +178,7 @@ bool GetMyExternalIP(unsigned int& ipRet)
     {
         if (nHost == 1)
         {
-            addrConnect = CAddress("70.86.96.218:80"); // www.ipaddressworld.com
-
-            if (nLookup == 1)
-            {
-                struct hostent* phostent = gethostbyname("www.ipaddressworld.com");
-                if (phostent && phostent->h_addr_list && phostent->h_addr_list[0])
-                    addrConnect = CAddress(*(u_long*)phostent->h_addr_list[0], htons(80));
-            }
-
-            pszGet = "GET /ip.php HTTP/1.1\r\n"
-                     "Host: www.ipaddressworld.com\r\n"
-                     "User-Agent: Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)\r\n"
-                     "Connection: close\r\n"
-                     "\r\n";
-
-            pszKeyword = "IP:";
-        }
-        else if (nHost == 2)
-        {
-            addrConnect = CAddress("208.78.68.70:80"); // checkip.dyndns.org
+            addrConnect = CAddress("91.198.22.70:80"); // checkip.dyndns.org
 
             if (nLookup == 1)
             {
@@ -212,6 +195,25 @@ bool GetMyExternalIP(unsigned int& ipRet)
 
             pszKeyword = "Address:";
         }
+        else if (nHost == 2)
+        {
+            addrConnect = CAddress("74.208.43.192:80"); // www.showmyip.com
+
+            if (nLookup == 1)
+            {
+                struct hostent* phostent = gethostbyname("www.showmyip.com");
+                if (phostent && phostent->h_addr_list && phostent->h_addr_list[0])
+                    addrConnect = CAddress(*(u_long*)phostent->h_addr_list[0], htons(80));
+            }
+
+            pszGet = "GET /simple/ HTTP/1.1\r\n"
+                     "Host: www.showmyip.com\r\n"
+                     "User-Agent: Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)\r\n"
+                     "Connection: close\r\n"
+                     "\r\n";
+
+            pszKeyword = NULL; // Returns just IP address
+        }
 
         if (GetMyExternalIP2(addrConnect, pszGet, pszKeyword, ipRet))
             return true;
@@ -224,12 +226,13 @@ bool GetMyExternalIP(unsigned int& ipRet)
 
 
 
-bool AddAddress(CAddress addr)
+bool AddAddress(CAddress addr, int64 nTimePenalty)
 {
     if (!addr.IsRoutable())
         return false;
     if (addr.ip == addrLocalHost.ip)
         return false;
+    addr.nTime = max((int64)0, (int64)addr.nTime - nTimePenalty);
     CRITICAL_BLOCK(cs_mapAddresses)
     {
         map<vector<unsigned char>, CAddress>::iterator it = mapAddresses.find(addr.GetKey());
@@ -1072,25 +1075,6 @@ bool OpenNetworkConnection(const CAddress& addrConnect)
     if (!pnode)
         return false;
     pnode->fNetworkNode = true;
-
-    if (addrLocalHost.IsRoutable() && !fUseProxy)
-    {
-        // Advertise our address
-        vector<CAddress> vAddr;
-        vAddr.push_back(addrLocalHost);
-        pnode->PushMessage("addr", vAddr);
-    }
-
-    // Get as many addresses as we can
-    pnode->PushMessage("getaddr");
-    pnode->fGetAddr = true; // don't relay the results of the getaddr
-
-    ////// should the one on the receiving end do this too?
-    // Subscribe our local subscription list
-    const unsigned int nHops = 0;
-    for (unsigned int nChannel = 0; nChannel < pnodeLocalHost->vfSubscribe.size(); nChannel++)
-        if (pnodeLocalHost->vfSubscribe[nChannel])
-            pnode->PushMessage("subscribe", nChannel, nHops);
 
     return true;
 }

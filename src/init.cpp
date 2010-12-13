@@ -173,6 +173,7 @@ bool AppInit2(int argc, char* argv[])
             "  -proxy=<ip:port> \t  "   + _("Connect through socks4 proxy\n") +
             "  -addnode=<ip>    \t  "   + _("Add a node to connect to\n") +
             "  -connect=<ip>    \t\t  " + _("Connect only to the specified node\n") +
+            "  -paytxfee=<amt>  \t  "   + _("Fee per KB to add to transactions you send\n") +
             "  -server          \t\t  " + _("Accept command line and JSON-RPC commands\n") +
             "  -daemon          \t\t  " + _("Run in the background as a daemon and accept commands\n") +
             "  -testnet         \t\t  " + _("Use the test network\n") +
@@ -205,14 +206,11 @@ bool AppInit2(int argc, char* argv[])
         return false;
     }
 
-    if (mapArgs.count("-debug"))
-        fDebug = true;
+    fDebug = GetBoolArg("-debug");
 
-    if (mapArgs.count("-printtodebugger"))
-        fPrintToDebugger = true;
+    fPrintToDebugger = GetBoolArg("-printtodebugger");
 
-    if (mapArgs.count("-testnet"))
-        fTestNet = true;
+    fTestNet = GetBoolArg("-testnet");
 
     if (fCommandLine)
     {
@@ -231,7 +229,7 @@ bool AppInit2(int argc, char* argv[])
 #endif
     printf("Default data directory %s\n", GetDefaultDataDir().c_str());
 
-    if (mapArgs.count("-loadblockindextest"))
+    if (GetBoolArg("-loadblockindextest"))
     {
         CTxDB txdb("r");
         txdb.LoadBlockIndex();
@@ -347,7 +345,7 @@ bool AppInit2(int argc, char* argv[])
     //
     // Parameters
     //
-    if (mapArgs.count("-printblockindex") || mapArgs.count("-printblocktree"))
+    if (GetBoolArg("-printblockindex") || GetBoolArg("-printblocktree"))
     {
         PrintBlockTree();
         return false;
@@ -376,13 +374,7 @@ bool AppInit2(int argc, char* argv[])
         return false;
     }
 
-    if (mapArgs.count("-gen"))
-    {
-        if (mapArgs["-gen"].empty())
-            fGenerateBitcoins = true;
-        else
-            fGenerateBitcoins = (atoi(mapArgs["-gen"].c_str()) != 0);
-    }
+    fGenerateBitcoins = GetBoolArg("-gen");
 
     if (mapArgs.count("-proxy"))
     {
@@ -413,7 +405,7 @@ bool AppInit2(int argc, char* argv[])
             wxMessageBox(_("Invalid amount for -paytxfee=<amount>"), "Bitcoin");
             return false;
         }
-        if (nTransactionFee > 1 * COIN)
+        if (nTransactionFee > 0.25 * COIN)
             wxMessageBox(_("Warning: -paytxfee is set very high.  This is the transaction fee you will pay if you send a transaction."), "Bitcoin", wxOK | wxICON_EXCLAMATION);
     }
 
@@ -433,7 +425,7 @@ bool AppInit2(int argc, char* argv[])
     if (!CreateThread(StartNode, NULL))
         wxMessageBox("Error: CreateThread(StartNode) failed", "Bitcoin");
 
-    if (mapArgs.count("-server") || fDaemon)
+    if (GetBoolArg("-server") || fDaemon)
         CreateThread(ThreadRPCServer, NULL);
 
 #if defined(__WXMSW__) && defined(GUI)
