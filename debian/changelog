@@ -3,4 +3,4 @@ bitcoin (0.3.18~dfsg-1) UNRELEASED; urgency=low
   * Initial release.
     Closes: bug#578157.
 
- -- Jonas Smedegaard <dr@jones.dk>  Wed, 21 Jul 2010 19:28:04 +0200
+ -- Jonas Smedegaard <dr@jones.dk>  Mon, 13 Dec 2010 15:29:24 +0100

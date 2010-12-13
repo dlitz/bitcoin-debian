@@ -6,7 +6,13 @@ Files: ./debian/compat,
 	./debian/control.in,
 	./debian/gbp.conf,
 	./debian/menu,
+	./debian/patches/1000_use_system_crypto++.patch,
+	./debian/patches/1001_use_system_json-spirit.patch,
+	./debian/patches/1002_use_non-local_system_wxWidgets.patch,
+	./debian/patches/README,
+	./debian/patches/series,
 	./debian/source/format,
+	./debian/source/local-options,
 	./debian/watch,
 	./src/rc/addressbook16.bmp,
 	./src/rc/addressbook16mask.bmp,
@@ -20,8 +26,6 @@ Files: ./debian/compat,
 	./src/rc/send16masknoshadow.bmp,
 	./src/rc/send20.bmp,
 	./src/rc/send20mask.bmp,
-	./src/sha.cpp,
-	./src/sha.h,
 	./src/ui.rc,
 	./src/uibase.h,
 	./src/xpm/addressbook16.xpm,
@@ -53,7 +57,6 @@ Files: ./readme.txt,
 	./src/irc.cpp,
 	./src/irc.h,
 	./src/key.h,
-	./src/main.cpp,
 	./src/main.h,
 	./src/makefile.mingw,
 	./src/makefile.osx,
@@ -61,6 +64,7 @@ Files: ./readme.txt,
 	./src/makefile.vc,
 	./src/net.cpp,
 	./src/net.h,
+	./src/noui.h,
 	./src/rpc.cpp,
 	./src/rpc.h,
 	./src/script.cpp,
@@ -76,25 +80,11 @@ Copyright: 2009-2010, Satoshi Nakamoto
 License: UNKNOWN
  FIXME
 
-Files: ./src/json/json_spirit.h,
-	./src/json/json_spirit_error_position.h,
-	./src/json/json_spirit_reader.cpp,
-	./src/json/json_spirit_reader.h,
-	./src/json/json_spirit_reader_template.h,
-	./src/json/json_spirit_stream_reader.h,
-	./src/json/json_spirit_utils.h,
-	./src/json/json_spirit_value.h,
-	./src/json/json_spirit_writer.cpp,
-	./src/json/json_spirit_writer.h,
-	./src/json/json_spirit_writer_template.h
-Copyright: John W. Wilkinson 2007, - 2009
-License: UNKNOWN
- FIXME
-
 Files: ./locale/de/LC_MESSAGES/bitcoin.po,
 	./locale/es/LC_MESSAGES/bitcoin.po,
 	./locale/it/LC_MESSAGES/bitcoin.po,
-	./locale/nl/LC_MESSAGES/bitcoin.po
+	./locale/nl/LC_MESSAGES/bitcoin.po,
+	./locale/ru/LC_MESSAGES/bitcoin.po
 Copyright: 2009-2010, Satoshi Nakamoto.\n"
 License: UNKNOWN
  FIXME
@@ -114,11 +104,6 @@ License: GPL
 Files: ./src/strlcpy.h
 Copyright: 1998, Todd C. Miller <Todd.Miller@courtesan.com>
 License: ISC
- FIXME
-
-Files: ./src/json/LICENSE.txt
-Copyright: 2007, - 2009, John W. Wilkinson
-License: MIT/X11 (BSD like)
  FIXME
 
 Files: ./src/setup.nsi
@@ -146,8 +131,14 @@ Copyright: (%s mûrira dans %d blocks)"
 License: UNKNOWN
  FIXME
 
-Files: ./src/json/json_spirit_value.cpp
-Copyright: 2007, John W Wilkinson
+Files: ./src/main.cpp
+Copyright: /* output */
+	2009-2010, Satoshi Nakamoto
+License: UNKNOWN
+ FIXME
+
+Files: ./src/sha256.cpp
+Copyright: 2010, Nils Schneider
 License: UNKNOWN
  FIXME
 
