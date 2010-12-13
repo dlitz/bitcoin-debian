@@ -53,3 +53,8 @@ CFLAGS += -Wno-invalid-offsetof -Wformat
 dbver = 4.7
 
 CDBS_BUILD_DEPENDS += , libwxgtk2.8-dev, libboost-system-dev, libdb$(dbver)++-dev, libssl-dev, libcrypto++-dev, pkg-config
+
+pre-build::
+	mkdir -p src/obj/nogui
+clean::
+	rm -rf src/obj
