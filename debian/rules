@@ -52,4 +52,4 @@ CFLAGS += -Wno-invalid-offsetof -Wformat
 # Code needs explicit version of BerkeleyDB according to upstream build note
 dbver = 4.7
 
-CDBS_BUILD_DEPENDS += , libwxgtk2.8-dev, libboost-system-dev, libdb$(dbver)++-dev, libssl-dev, libcrypto++-dev
+CDBS_BUILD_DEPENDS += , libwxgtk2.8-dev, libboost-system-dev, libdb$(dbver)++-dev, libssl-dev, libcrypto++-dev, pkg-config
