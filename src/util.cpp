@@ -157,10 +157,16 @@ inline int OutputDebugStringF(const char* pszFormat, ...)
     else
     {
         // print to debug.log
-        char pszFile[MAX_PATH+100];
-        GetDataDir(pszFile);
-        strlcat(pszFile, "/debug.log", sizeof(pszFile));
-        FILE* fileout = fopen(pszFile, "a");
+        static FILE* fileout = NULL;
+
+        if (!fileout)
+        {
+            char pszFile[MAX_PATH+100];
+            GetDataDir(pszFile);
+            strlcat(pszFile, "/debug.log", sizeof(pszFile));
+            fileout = fopen(pszFile, "a");
+            setbuf(fileout, NULL); // unbuffered
+        }
         if (fileout)
         {
             //// Debug print useful for profiling
@@ -169,15 +175,15 @@ inline int OutputDebugStringF(const char* pszFormat, ...)
             va_start(arg_ptr, pszFormat);
             ret = vfprintf(fileout, pszFormat, arg_ptr);
             va_end(arg_ptr);
-            fclose(fileout);
         }
     }
 
 #ifdef __WXMSW__
     if (fPrintToDebugger)
     {
-        // accumulate a line at a time
         static CCriticalSection cs_OutputDebugStringF;
+
+        // accumulate a line at a time
         CRITICAL_BLOCK(cs_OutputDebugStringF)
         {
             static char pszBuffer[50000];
@@ -399,11 +405,11 @@ vector<unsigned char> ParseHex(const char* psz)
         while (isspace(*psz))
             psz++;
         char c = phexdigit[(unsigned char)*psz++];
-        if (c == -1)
+        if (c == (char)-1)
             break;
         unsigned char n = (c << 4);
         c = phexdigit[(unsigned char)*psz++];
-        if (c == -1)
+        if (c == (char)-1)
             break;
         n |= c;
         vch.push_back(n);

@@ -196,7 +196,7 @@ int ThreadSafeMessageBox(const string& message, const string& caption, int style
 
 bool ThreadSafeAskFee(int64 nFeeRequired, const string& strCaption, wxWindow* parent)
 {
-    if (nFeeRequired < CENT || fDaemon)
+    if (nFeeRequired < CENT || nFeeRequired <= nTransactionFee || fDaemon)
         return true;
     string strMessage = strprintf(
         _("This transaction is over the size limit.  You can still send it for a fee of %s, "
@@ -391,7 +391,7 @@ void CMainFrame::OnIconize(wxIconizeEvent& event)
     if (!event.Iconized())
         fClosedToTray = false;
 #if defined(__WXGTK__) || defined(__WXMAC_OSX__)
-    if (mapArgs.count("-minimizetotray")) {
+    if (GetBoolArg("-minimizetotray")) {
 #endif
     // The tray icon sometimes disappears on ubuntu karmic
     // Hiding the taskbar button doesn't work cleanly on ubuntu lucid
@@ -697,16 +697,13 @@ bool CMainFrame::InsertTransaction(const CWalletTx& wtx, bool fNew, int nIndex)
         if (fAllFromMe && fAllToMe)
         {
             // Payment to self
-            int64 nValue = wtx.vout[0].nValue;
+            int64 nChange = wtx.GetChange();
             InsertLine(fNew, nIndex, hash, strSort, colour,
                        strStatus,
                        nTime ? DateTimeStr(nTime) : "",
                        _("Payment to yourself"),
-                       "",
-                       "");
-            /// issue: can't tell which is the payment and which is the change anymore
-            //           FormatMoney(nNet - nValue, true),
-            //           FormatMoney(nValue, true));
+                       FormatMoney(-(nDebit - nChange), true),
+                       FormatMoney(nCredit - nChange, true));
         }
         else if (fAllFromMe)
         {
@@ -1171,7 +1168,7 @@ void CMainFrame::OnButtonNew(wxCommandEvent& event)
     string strName = dialog.GetValue();
 
     // Generate new key
-    string strAddress = PubKeyToAddress(CWalletDB().GetKeyFromKeyPool());
+    string strAddress = PubKeyToAddress(GetKeyFromKeyPool());
 
     // Save
     SetAddressBookName(strAddress, strName);
@@ -1376,10 +1373,10 @@ CTxDetailsDialog::CTxDetailsDialog(wxWindow* parent, CWalletTx wtx) : CTxDetails
                 if (fAllToMe)
                 {
                     // Payment to self
-                    /// issue: can't tell which is the payment and which is the change anymore
-                    //int64 nValue = wtx.vout[0].nValue;
-                    //strHTML += _("<b>Debit:</b> ") + FormatMoney(-nValue) + "<br>";
-                    //strHTML += _("<b>Credit:</b> ") + FormatMoney(nValue) + "<br>";
+                    int64 nChange = wtx.GetChange();
+                    int64 nValue = nCredit - nChange;
+                    strHTML += _("<b>Debit:</b> ") + FormatMoney(-nValue) + "<br>";
+                    strHTML += _("<b>Credit:</b> ") + FormatMoney(nValue) + "<br>";
                 }
 
                 int64 nTxFee = nDebit - wtx.GetValueOut();
@@ -1631,9 +1628,12 @@ COptionsDialog::COptionsDialog(wxWindow* parent) : COptionsDialogBase(parent)
     //m_listBox->Append(_("Test 2"));
     m_listBox->SetSelection(0);
     SelectPage(0);
+#ifndef __WXMSW__
+    SetSize(1.0 * GetSize().GetWidth(), 1.2 * GetSize().GetHeight());
+#endif
 #if defined(__WXGTK__) || defined(__WXMAC_OSX__)
     m_checkBoxStartOnSystemStartup->SetLabel(_("&Start Bitcoin on window system startup"));
-    if (!mapArgs.count("-minimizetotray"))
+    if (!GetBoolArg("-minimizetotray"))
     {
         // Minimize to tray is just too buggy on Linux
         fMinimizeToTray = false;
@@ -1929,69 +1929,78 @@ void CSendDialog::OnButtonPaste(wxCommandEvent& event)
 
 void CSendDialog::OnButtonSend(wxCommandEvent& event)
 {
-    CWalletTx wtx;
-    string strAddress = (string)m_textCtrlAddress->GetValue();
+    static CCriticalSection cs_sendlock;
+    TRY_CRITICAL_BLOCK(cs_sendlock)
+    {
+        CWalletTx wtx;
+        string strAddress = (string)m_textCtrlAddress->GetValue();
 
-    // Parse amount
-    int64 nValue = 0;
-    if (!ParseMoney(m_textCtrlAmount->GetValue(), nValue) || nValue <= 0)
-    {
-        wxMessageBox(_("Error in amount  "), _("Send Coins"));
-        return;
-    }
-    if (nValue > GetBalance())
-    {
-        wxMessageBox(_("Amount exceeds your balance  "), _("Send Coins"));
-        return;
-    }
-    if (nValue + nTransactionFee > GetBalance())
-    {
-        wxMessageBox(string(_("Total exceeds your balance when the ")) + FormatMoney(nTransactionFee) + _(" transaction fee is included  "), _("Send Coins"));
-        return;
-    }
-
-    // Parse bitcoin address
-    uint160 hash160;
-    bool fBitcoinAddress = AddressToHash160(strAddress, hash160);
-
-    if (fBitcoinAddress)
-    {
-        // Send to bitcoin address
-        CScript scriptPubKey;
-        scriptPubKey << OP_DUP << OP_HASH160 << hash160 << OP_EQUALVERIFY << OP_CHECKSIG;
-
-        string strError = SendMoney(scriptPubKey, nValue, wtx, true);
-        if (strError == "")
-            wxMessageBox(_("Payment sent  "), _("Sending..."));
-        else if (strError != "ABORTED")
-            wxMessageBox(strError + "  ", _("Sending..."));
-    }
-    else
-    {
-        // Parse IP address
-        CAddress addr(strAddress);
-        if (!addr.IsValid())
+        // Parse amount
+        int64 nValue = 0;
+        if (!ParseMoney(m_textCtrlAmount->GetValue(), nValue) || nValue <= 0)
         {
-            wxMessageBox(_("Invalid address  "), _("Send Coins"));
+            wxMessageBox(_("Error in amount  "), _("Send Coins"));
+            return;
+        }
+        if (nValue > GetBalance())
+        {
+            wxMessageBox(_("Amount exceeds your balance  "), _("Send Coins"));
+            return;
+        }
+        if (nValue + nTransactionFee > GetBalance())
+        {
+            wxMessageBox(string(_("Total exceeds your balance when the ")) + FormatMoney(nTransactionFee) + _(" transaction fee is included  "), _("Send Coins"));
             return;
         }
 
-        // Message
-        wtx.mapValue["to"] = strAddress;
-        wtx.mapValue["from"] = m_textCtrlFrom->GetValue();
-        wtx.mapValue["message"] = m_textCtrlMessage->GetValue();
+        // Parse bitcoin address
+        uint160 hash160;
+        bool fBitcoinAddress = AddressToHash160(strAddress, hash160);
 
-        // Send to IP address
-        CSendingDialog* pdialog = new CSendingDialog(this, addr, nValue, wtx);
-        if (!pdialog->ShowModal())
-            return;
+        if (fBitcoinAddress)
+        {
+            // Send to bitcoin address
+            CScript scriptPubKey;
+            scriptPubKey << OP_DUP << OP_HASH160 << hash160 << OP_EQUALVERIFY << OP_CHECKSIG;
+
+            string strError = SendMoney(scriptPubKey, nValue, wtx, true);
+            if (strError == "")
+                wxMessageBox(_("Payment sent  "), _("Sending..."));
+            else if (strError == "ABORTED")
+                return; // leave send dialog open
+            else
+            {
+                wxMessageBox(strError + "  ", _("Sending..."));
+                EndModal(false);
+            }
+        }
+        else
+        {
+            // Parse IP address
+            CAddress addr(strAddress);
+            if (!addr.IsValid())
+            {
+                wxMessageBox(_("Invalid address  "), _("Send Coins"));
+                return;
+            }
+
+            // Message
+            wtx.mapValue["to"] = strAddress;
+            wtx.mapValue["from"] = m_textCtrlFrom->GetValue();
+            wtx.mapValue["message"] = m_textCtrlMessage->GetValue();
+
+            // Send to IP address
+            CSendingDialog* pdialog = new CSendingDialog(this, addr, nValue, wtx);
+            if (!pdialog->ShowModal())
+                return;
+        }
+
+        CRITICAL_BLOCK(cs_mapAddressBook)
+            if (!mapAddressBook.count(strAddress))
+                SetAddressBookName(strAddress, "");
+
+        EndModal(true);
     }
-
-    CRITICAL_BLOCK(cs_mapAddressBook)
-        if (!mapAddressBook.count(strAddress))
-            SetAddressBookName(strAddress, "");
-
-    EndModal(true);
 }
 
 void CSendDialog::OnButtonCancel(wxCommandEvent& event)
@@ -2566,7 +2575,7 @@ void CAddressBookDialog::OnButtonNew(wxCommandEvent& event)
         strName = dialog.GetValue();
 
         // Generate new key
-        strAddress = PubKeyToAddress(CWalletDB().GetKeyFromKeyPool());
+        strAddress = PubKeyToAddress(GetKeyFromKeyPool());
     }
 
     // Add to list and select it
@@ -2732,10 +2741,10 @@ wxMenu* CMyTaskBarIcon::CreatePopupMenu()
 void CreateMainWindow()
 {
     pframeMain = new CMainFrame(NULL);
-    if (mapArgs.count("-min"))
+    if (GetBoolArg("-min"))
         pframeMain->Iconize(true);
 #if defined(__WXGTK__) || defined(__WXMAC_OSX__)
-    if (!mapArgs.count("-minimizetotray"))
+    if (!GetBoolArg("-minimizetotray"))
         fMinimizeToTray = false;
 #endif
     pframeMain->Show(true);  // have to show first to get taskbar button to hide
