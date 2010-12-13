@@ -11,3 +11,13 @@
  #define printf OutputDebugStringF
  // MinGW 3.4.5 gets "fatal error: had to relocate PCH" if the json headers are
  // precompiled in headers.h.  The problem might be when the pch file goes over
+--- a/src/makefile.unix
++++ b/src/makefile.unix
+@@ -27,6 +27,7 @@
+    -l db_cxx \
+    -l ssl \
+    -l crypto \
++   -l json_spirit \
+  -Wl,-Bdynamic \
+    $(CRYPTOPPLIBS) \
+    -l gthread-2.0 \
