@@ -56,9 +56,8 @@ dbver = 4.7
 # Apparently any recent boost is ok
 boostver =
 
-CDBS_BUILD_DEPENDS += , libboost-system$(boostver)-dev, libdb$(dbver)++-dev, libssl-dev, libcrypto++-dev, pkg-config
-# TODO: Drop this when maybe system json is used some day
-CDBS_BUILD_DEPENDS += , libboost-filesystem$(boostver)-dev, libboost-program-options$(boostver)-dev
+# TODO: libboost-system-dev is sufficient if system json is used some day
+CDBS_BUILD_DEPENDS += , libboost-all$(boostver)-dev, libdb$(dbver)++-dev, libssl-dev, libcrypto++-dev, pkg-config
 
 # FIXME: when available, enable this and install into -gui package
 #CDBS_BUILD_DEPENDS += , libwxgtk2.9-dev
