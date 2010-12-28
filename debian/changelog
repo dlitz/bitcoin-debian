@@ -1,3 +1,18 @@
+bitcoin (0.3.19~dfsg-2) unstable; urgency=low
+
+  * Adjust build options to use optimized miner only for amd64. Fixes
+    FTBFS on i386 (and other archs, if compiling anywhere else at all).
+  * Avoid static linking.
+  * Adjust patch 2001 to avoid only arch-specific optimizations (keep
+    -O3).
+  * Extend long description to mention disk consumption and initial use
+    of IRC.
+  All of above changes thanks to Helmuth Grohne.
+  * Add lintian override regarding OpenSSL and GPL: Linked code is Expat
+    - only Debian packaging is GPL-2+.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Wed, 29 Dec 2010 00:27:54 +0100
+
 bitcoin (0.3.19~dfsg-1) unstable; urgency=low
 
   [ Jonas Smedegaard ]
