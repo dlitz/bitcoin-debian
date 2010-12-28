@@ -1,0 +1,14 @@
+Description: Avoid optimizations too aggressive for a universal system
+Author: Jonas Smedegaard <dr@jones.dk>
+Last-Update: 2010-12-28
+--- a/src/makefile.unix
++++ b/src/makefile.unix
+@@ -58,7 +58,7 @@
+ 
+ 
+ obj/sha256.o: sha256.cpp
+-	g++ -c $(CFLAGS) -msse2 -O3 -march=amdfam10 -o $@ $<
++	g++ -c $(CFLAGS) -o $@ $<
+ 
+ bitcoin: $(OBJS) obj/ui.o obj/uibase.o obj/sha256.o
+ 	g++ $(CFLAGS) -o $@ $^ $(WXLIBS) $(LIBS)
