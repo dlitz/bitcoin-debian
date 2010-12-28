@@ -67,3 +67,4 @@ pre-build::
 	mkdir -p src/obj/nogui
 clean::
 	rm -rf src/obj
+	rm -f src/bitcoind
