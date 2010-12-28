@@ -1,20 +1,19 @@
-Format-Specification: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?rev=135
-Name: Bitcoin
-Maintainer: Satoshi Nakamoto <satoshin@gmx.com>
+Format: http://bzr.debian.org/scm/loggerhead/dep/dep5/trunk/annotate/132/dep5.mdwn
+Upstream-Name: Bitcoin
+Upstream-Contact: Satoshi Nakamoto <satoshin@gmx.com>
 Source: http://sourceforge.net/projects/bitcoin/files/
-
-Copyright: 2009-2010, Satoshi Nakamoto <satoshin@gmx.com>
+Copyright: 2009-2010, Bitcoin Developers
 License: Expat
 
-Files: ./src/strlcpy.h
+Files: src/strlcpy.h
 Copyright: 1998, Todd C. Miller <Todd.Miller@courtesan.com>
 License: ISC
 
-Files: ./src/sha256.cpp
+Files: src/sha256.cpp
 Copyright: 2010, Nils Schneider
 License: Expat
 
-Files: ./debian/*
+Files: debian/*
 Copyright: 2010, Jonas Smedegaard <dr@jones.dk>
 License: GPL-2+
 
@@ -62,7 +61,7 @@ License: GPL-2+
  WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  General Public License for more details.
- .
+Comment:
  On Debian GNU systems, the complete text of the GNU General Public
  License (GPL) version 2 or newer can be found in
  '/usr/share/common-licenses/GPL'.
