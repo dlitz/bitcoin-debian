@@ -2,4 +2,4 @@
 #1001_use_system_json-spirit.patch
 1002_use_non-local_system_wxWidgets.patch
 1003_link_all_dynamically.patch
-2001_relax_optimizations.patch
+2001_avoid_arch-specific_optimizations.patch
