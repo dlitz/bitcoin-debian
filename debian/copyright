@@ -5,6 +5,10 @@ Source: http://sourceforge.net/projects/bitcoin/files/
 Copyright: 2009-2010, Bitcoin Developers
 License: Expat
 
+Files: src/json/*
+Copyright: 2007-2009, John W. Wilkinson
+License: Expat
+
 Files: src/strlcpy.h
 Copyright: 1998, Todd C. Miller <Todd.Miller@courtesan.com>
 License: ISC
