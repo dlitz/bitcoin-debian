@@ -1,4 +1,4 @@
-Bitcoin 0.3.18 BETA
+Bitcoin 0.3.19 BETA
 
 Copyright (c) 2009-2010 Satoshi Nakamoto
 Distributed under the MIT/X11 software license, see the accompanying
