@@ -1,6 +1,7 @@
-bitcoin (0.3.18~dfsg-1) UNRELEASED; urgency=low
+bitcoin (0.3.19~dfsg-1) unstable; urgency=low
 
+  [ Jonas Smedegaard ]
   * Initial release.
     Closes: bug#578157.
 
- -- Jonas Smedegaard <dr@jones.dk>  Mon, 13 Dec 2010 15:29:24 +0100
+ -- Jonas Smedegaard <dr@jones.dk>  Tue, 28 Dec 2010 15:49:22 +0100

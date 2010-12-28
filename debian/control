@@ -10,8 +10,12 @@ Build-Depends: cdbs (>= 0.4.70~),
  libdb4.7++-dev,
  libssl-dev,
  libcrypto++-dev,
- pkg-config
-Standards-Version: 3.9.0
+ pkg-config,
+ libglib2.0-dev,
+ libboost-filesystem-dev,
+ libboost-program-options-dev,
+ libboost-thread-dev
+Standards-Version: 3.9.1
 Homepage: http://www.bitcoin.org/
 Vcs-Git: git://git.debian.org/git/collab-maint/bitcoin
 Vcs-Browser: http://git.debian.org/?p=collab-maint/bitcoin.git;a=summary
