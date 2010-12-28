@@ -34,7 +34,7 @@ DEB_UPSTREAM_REPACKAGE_EXCLUDES += ./bin/
 DEB_UPSTREAM_REPACKAGE_EXCLUDES += ./src/cryptopp/
 
 # Silence .ico and .mo files in addition to the default debian files
-DEB_COPYRIGHT_CHECK_IGNORE_REGEX = ^./src/rc/bitcoin.ico|./locale/.*/LC_MESSAGES/.*.mo|\./debian/(changelog|copyright(|_hints|_newhints))$
+DEB_COPYRIGHT_CHECK_IGNORE_REGEX = ^src/rc/bitcoin.ico|locale/.*/LC_MESSAGES/.*.mo|debian/(changelog|copyright(|_hints|_newhints))$
 
 DEB_BUILDDIR = src
 
