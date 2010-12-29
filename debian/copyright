@@ -5,6 +5,12 @@ Source: http://sourceforge.net/projects/bitcoin/files/
 Copyright: 2009-2010, Bitcoin Developers
 License: Expat
 
+Files-Excluded: bin/*
+Comment: source-less binaries
+
+Files-Excluded: src/cryptopp/*
+Comment: unneeded external project sources
+
 Files: src/json/*
 Copyright: 2007-2009, John W. Wilkinson
 License: Expat
