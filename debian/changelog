@@ -1,3 +1,10 @@
+bitcoin (0.3.19~dfsg-3) UNRELEASED; urgency=low
+
+  * Document in copyright file files excluded from repackaged source.
+  * Bump copyright file DEP5 format hint to Bazaar rev. 137 draft.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Thu, 06 Jan 2011 17:04:42 +0100
+
 bitcoin (0.3.19~dfsg-2) unstable; urgency=low
 
   * Adjust build options to use optimized miner only for amd64. Fixes
