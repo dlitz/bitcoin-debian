@@ -1,9 +1,17 @@
-bitcoin (0.3.19~dfsg-3) UNRELEASED; urgency=low
+bitcoin (0.3.19~dfsg-3) unstable; urgency=low
 
   * Document in copyright file files excluded from repackaged source.
-  * Bump copyright file DEP5 format hint to Bazaar rev. 137 draft.
+  * Update copyright file:
+    + Bump DEP5 format hint to Subversion draft rev. 153.
+    + Consistently wrap at 72 chars.
+    + Refer to GPL-2 file (not GPL symlink).
+  * Link against Berkeley DB 4.8 (not 4.7):
+    + Build-depend on libdb4.8++-dev (and on on libdb4.7++-dev).
+    + Suggest libdb4.8-util and db4.7-util.
+    + Add README.Debian note on (untested) upgrade routine.
+    + Add NEWS entry on changed db version, referring to README.Debian.
 
- -- Jonas Smedegaard <dr@jones.dk>  Thu, 06 Jan 2011 17:04:42 +0100
+ -- Jonas Smedegaard <dr@jones.dk>  Fri, 07 Jan 2011 22:50:57 +0100
 
 bitcoin (0.3.19~dfsg-2) unstable; urgency=low
 

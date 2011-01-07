@@ -7,7 +7,7 @@ Build-Depends: cdbs (>= 0.4.70~),
  dh-buildinfo,
  devscripts (>= 2.10.7~),
  libboost-system-dev,
- libdb4.7++-dev,
+ libdb4.8++-dev,
  libssl-dev,
  libcrypto++-dev,
  pkg-config,
@@ -23,6 +23,7 @@ Vcs-Browser: http://git.debian.org/?p=collab-maint/bitcoin.git;a=summary
 Package: bitcoin-cli
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
+Suggests: ${cdbs:Suggests}
 Description: peer-to-peer network based anonymous digital currency - CLI tools
  Bitcoin is a free open source peer-to-peer electronic cash system that
  is completely decentralized, without the need for a central server or
