@@ -1,0 +1,19 @@
+Upgrading Problems
+==================
+
+This version of Bitcoin uses Berkeley DB 4.8.
+
+Bitcoin unfortunately does not automatically update its database, so if
+you have previously used other versions of Bitcoin, the local database
+may be incompatible - most likely Berkeley DB 4.7.
+
+If you experience problems, you may try to upgrade the database manually
+using something like the following:
+
+    db4.7_recover -h ~/.bitcoin
+    db4.8_upgrade -h ~/.bitcoin wallet.dat
+
+For above commands you need the packages libdb4.7-util and db4.8-util
+installed - or the equivalent for other versions.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Fri, 07 Jan 2011 21:03:36 +0100

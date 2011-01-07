@@ -54,8 +54,10 @@ CFLAGS += -D__WXDEBUG__
 #wx-cxxflags := $(shell wx-config --cxxflags)
 #CFLAGS += $(wx-cxxflags)
 
-# Code needs explicit version of BerkeleyDB according to upstream build note
-dbver = 4.7
+# Local databases do not seemlessly migrate across BerkeleyDB versions.
+# If bumping versions, also add NEWS item, and update README.Debian.
+dbver = 4.8
+dbver_old = 4.7
 
 # Apparently any recent boost is ok
 boostver =
@@ -66,6 +68,8 @@ CDBS_BUILD_DEPENDS += , libboost-filesystem$(boostver)-dev, libboost-program-opt
 
 # FIXME: when available, enable this and install into -gui package
 #CDBS_BUILD_DEPENDS += , libwxgtk2.9-dev
+
+CDBS_SUGGESTS_bitcoin-cli = db$(dbver)-util, db$(dbver_old)-util
 
 pre-build::
 	mkdir -p src/obj/nogui

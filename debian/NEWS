@@ -1,0 +1,13 @@
+bitcoin (0.3.19~dfsg-3) unstable; urgency=low
+
+  * This version of Bitcoin switches to Berkeley DB 4.8.  Earlier
+    Debian releases (and upstream binaries too) use Berkeley DB 4.7.
+
+    Bitcoin unfortunately does not automatically update its database, so
+    if you experience problems, please refer to
+
+      /usr/share/doc/netatalk/README.Debian
+
+    for information on how to fix it.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Fri, 07 Jan 2011 21:03:36 +0100
