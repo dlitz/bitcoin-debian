@@ -13,7 +13,7 @@ using something like the following:
     db4.7_recover -h ~/.bitcoin
     db4.8_upgrade -h ~/.bitcoin wallet.dat
 
-For above commands you need the packages libdb4.7-util and db4.8-util
+For above commands you need the packages db4.7-util and db4.8-util
 installed - or the equivalent for other versions.
 
  -- Jonas Smedegaard <dr@jones.dk>  Fri, 07 Jan 2011 21:03:36 +0100
