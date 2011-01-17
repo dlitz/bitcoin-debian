@@ -1,4 +1,4 @@
-bitcoin (0.3.19~dfsg-4) UNRELEASED; urgency=low
+bitcoin (0.3.19~dfsg-4) unstable; urgency=low
 
   [ Micah Anderson ]
   * Provide example bitcoin.conf.
@@ -9,8 +9,10 @@ bitcoin (0.3.19~dfsg-4) UNRELEASED; urgency=low
     + Suppress optional build-dependencies.
     + Add fallback build-dependencies on the most recent Boost libs
     available in Lenny (where unversioned Boost libs are missing).
+  * Add Micah as copyright holder for manpages, licensed as GPL-3+.
+  * Bump copyright format to Subversion candidate draft 162 of DEP5.
 
- -- Jonas Smedegaard <dr@jones.dk>  Mon, 17 Jan 2011 13:39:19 +0100
+ -- Jonas Smedegaard <dr@jones.dk>  Mon, 17 Jan 2011 14:00:48 +0100
 
 bitcoin (0.3.19~dfsg-3) unstable; urgency=low
 
