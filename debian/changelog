@@ -2,6 +2,7 @@ bitcoin (0.3.19~dfsg-4) UNRELEASED; urgency=low
 
   [ Micah Anderson ]
   * Provide an examples/bitcoin.conf
+  * Add bitcoind(1) and bitcoin.conf(5) man pages
 
  -- Micah Anderson <micah@debian.org>  Sun, 16 Jan 2011 22:53:20 -0500
 
