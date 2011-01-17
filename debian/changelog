@@ -1,10 +1,16 @@
 bitcoin (0.3.19~dfsg-4) UNRELEASED; urgency=low
 
   [ Micah Anderson ]
-  * Provide an examples/bitcoin.conf
-  * Add bitcoind(1) and bitcoin.conf(5) man pages
+  * Provide example bitcoin.conf.
+  * Add bitcoind(1) and bitcoin.conf(5) man pages.
 
- -- Micah Anderson <micah@debian.org>  Sun, 16 Jan 2011 22:53:20 -0500
+  [ Jonas Smedegaard ]
+  * Ease backporting:
+    + Suppress optional build-dependencies.
+    + Add fallback build-dependencies on the most recent Boost libs
+    available in Lenny (where unversioned Boost libs are missing).
+
+ -- Jonas Smedegaard <dr@jones.dk>  Mon, 17 Jan 2011 13:39:19 +0100
 
 bitcoin (0.3.19~dfsg-3) unstable; urgency=low
 
