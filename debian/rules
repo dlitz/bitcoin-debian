@@ -58,6 +58,9 @@ CFLAGS += -D__WXDEBUG__
 #wx-cxxflags := $(shell wx-config --cxxflags)
 #CFLAGS += $(wx-cxxflags)
 
+DEB_INSTALL_EXAMPLES_bitcoin-cli += debian/examples/*
+DEB_INSTALL_MANPAGES_bitcoin-cli += debian/manpages/*
+
 # Local databases do not seemlessly migrate across BerkeleyDB versions.
 # If bumping versions, also add NEWS item, and update README.Debian.
 dbver = 4.8
