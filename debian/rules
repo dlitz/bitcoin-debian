@@ -47,6 +47,10 @@ DEB_MAKE_MAKEFILE = makefile.unix
 # Avoid GUI until wxWidget 2.9 is in Debian
 DEB_MAKE_BUILD_TARGET = bitcoind
 
+# Respect DEB_BUILD_OPTIONS, and suppress arch-specific optimizations
+CFLAGS_OPTIMIZE = $(if $(filter noopt,$(DEB_BUILD_OPTIONS))-O0,-02)
+CFLAGS_OPTIMIZEMORE = $(if $(filter noopt,$(DEB_BUILD_OPTIONS))-O0,-03)
+
 # Readd default flags (upstream bogusly use CFLAGS for C++)
 CFLAGS += -D__WXGTK__ -DNOPCH -DUSE_SSL
 #CFLAGS += -Wno-invalid-offsetof -Wformat
