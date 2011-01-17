@@ -69,7 +69,7 @@ dbver_old = 4.7
 # Apparently any recent boost is ok.  Lenny do not include unversioned
 # Boost, however, so add fallback to ease backporting
 boostver =
-boostoldver = 1.40
+boostoldver = 1.35
 boostdep = $(foreach dep,$1,libboost-$(dep)$(boostver)-dev | libboost-$(dep)$(boostoldver)-dev$(comma) )
 
 CDBS_BUILD_DEPENDS += , $(call boostdep,system), libdb$(dbver)++-dev, libssl-dev, libcrypto++-dev, pkg-config, libglib2.0-dev
