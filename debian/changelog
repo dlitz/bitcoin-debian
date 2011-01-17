@@ -1,3 +1,14 @@
+bitcoin (0.3.19~dfsg-6) unstable; urgency=low
+
+  * Fix override agressive optimizations.
+  * Fix tighten build-dependencies to really fit backporting to Lenny:
+    + Add fallback build-dependency on libdb4.6++-dev.
+    + Tighten unversioned Boost build-dependencies to recent versions,
+      To force use of versioned Boost when backporting to Lenny.
+    ...needs more love, though: actual build fails.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Mon, 17 Jan 2011 19:48:35 +0100
+
 bitcoin (0.3.19~dfsg-5) unstable; urgency=low
 
   * Fix lower Boost fallback-build-dependencies to 1.35, really

@@ -5,15 +5,15 @@ Maintainer: Jonas Smedegaard <dr@jones.dk>
 Build-Depends: cdbs,
  debhelper (>= 6),
  dh-buildinfo,
- libboost-system-dev | libboost-system1.35-dev,
- libdb4.8++-dev,
+ libboost-system-dev (>> 1.35) | libboost-system1.35-dev,
+ libdb4.8++-dev | libdb4.6++-dev,
  libssl-dev,
  libcrypto++-dev,
  pkg-config,
  libglib2.0-dev,
- libboost-filesystem-dev | libboost-filesystem1.35-dev,
- libboost-program-options-dev | libboost-program-options1.35-dev,
- libboost-thread-dev | libboost-thread1.35-dev
+ libboost-filesystem-dev (>> 1.35) | libboost-filesystem1.35-dev,
+ libboost-program-options-dev (>> 1.35) | libboost-program-options1.35-dev,
+ libboost-thread-dev (>> 1.35) | libboost-thread1.35-dev
 Standards-Version: 3.9.1
 Homepage: http://www.bitcoin.org/
 Vcs-Git: git://git.debian.org/git/collab-maint/bitcoin
