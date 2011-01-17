@@ -16,10 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-include /usr/share/cdbs/1/rules/upstream-tarball.mk
+-include /usr/share/cdbs/1/rules/upstream-tarball.mk
 include /usr/share/cdbs/1/class/makefile.mk
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/rules/utils.mk
+
+# suppress optional build-dependencies
+CDBS_BUILD_DEPENDS_rules_upstream-tarball =
+CDBS_BUILD_DEPENDS_rules_utils_copyright-check =
 
 DEB_UPSTREAM_URL = http://downloads.sourceforge.net/sourceforge/bitcoin
 DEB_UPSTREAM_TARBALL_BASENAME_MANGLE = s/$$/-linux/
