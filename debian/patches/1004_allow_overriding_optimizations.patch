@@ -1,0 +1,25 @@
+Description: Allow overriding optimization flags
+Author: Jonas Smedegaard <dr@jones.dk>
+Last-Update: 2011-01-17
+--- a/src/makefile.unix
++++ b/src/makefile.unix
+@@ -31,7 +31,9 @@
+ 
+ DEFS=-D__WXGTK__ -DNOPCH -DFOURWAYSSE2 -DUSE_SSL
+ DEBUGFLAGS=-g -D__WXDEBUG__
+-CFLAGS=-O2 -Wno-invalid-offsetof -Wformat $(DEBUGFLAGS) $(DEFS) $(INCLUDEPATHS)
++CFLAGS_OPTIMIZE=-O2
++CFLAGS_OPTIMIZEMORE=-msse2 -O3 -march=amdfam10
++CFLAGS=$(CFLAGS_OPTIMIZE) -Wno-invalid-offsetof -Wformat $(DEBUGFLAGS) $(DEFS) $(INCLUDEPATHS)
+ HEADERS=headers.h strlcpy.h serialize.h uint256.h util.h key.h bignum.h base58.h \
+     script.h db.h net.h irc.h main.h rpc.h uibase.h ui.h noui.h init.h
+ 
+@@ -54,7 +56,7 @@
+ 
+ 
+ obj/sha256.o: sha256.cpp
+-	g++ -c $(CFLAGS) -msse2 -O3 -march=amdfam10 -o $@ $<
++	g++ -c $(CFLAGS) $(CFLAGS_OPTIMIZEMORE) -o $@ $<
+ 
+ bitcoin: $(OBJS) obj/ui.o obj/uibase.o obj/sha256.o
+ 	g++ $(CFLAGS) -o $@ $^ $(WXLIBS) $(LIBS)
