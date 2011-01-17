@@ -1,3 +1,10 @@
+bitcoin (0.3.19~dfsg-4) UNRELEASED; urgency=low
+
+  [ Micah Anderson ]
+  * Provide an examples/bitcoin.conf
+
+ -- Micah Anderson <micah@debian.org>  Sun, 16 Jan 2011 22:53:20 -0500
+
 bitcoin (0.3.19~dfsg-3) unstable; urgency=low
 
   * Document in copyright file files excluded from repackaged source.
