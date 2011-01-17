@@ -66,8 +66,9 @@ DEB_INSTALL_MANPAGES_bitcoin-cli += debian/manpages/*
 dbver = 4.8
 dbver_old = 4.7
 
-# Apparently any recent boost is ok.  Lenny do not include unversioned
-# Boost, however, so add fallback to ease backporting
+# Apparently any recent boost is ok.  Unversioned Boost in Lenny is too
+# old, however (do not include libboost-system*), so add fallback to
+# ease backporting
 boostver =
 boostoldver = 1.35
 boostdep = $(foreach dep,$1,libboost-$(dep)$(boostver)-dev | libboost-$(dep)$(boostoldver)-dev$(comma) )
