@@ -1,3 +1,18 @@
+bitcoin (0.3.19~dfsg-5) unstable; urgency=low
+
+  * Fix lower Boost fallback-build-dependencies to 1.35, really
+    available in Lenny.
+  * Correct comment in rules file regarding reason for versioned Boost
+    fallback-build-dependency.
+  * Add patch 2002 adding -mt decoration to Boost flags, to ease
+    backporting to Lenny.
+  * Respect DEB_BUILD_OPTIONS, and suppress arch-specific optimizations:
+    + Add patch 1004 to allow overriding optimization flags.
+    + Set optimization flags conditionally at build time.
+    + Drop patch 2002 unconditionally suppressing arch-optimizations.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Mon, 17 Jan 2011 16:04:48 +0100
+
 bitcoin (0.3.19~dfsg-4) unstable; urgency=low
 
   [ Micah Anderson ]

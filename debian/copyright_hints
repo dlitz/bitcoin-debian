@@ -13,7 +13,6 @@ Files: debian/NEWS
  debian/bitcoin-cli.lintian-overrides
  debian/bitcoin-cli.manpages
  debian/bitcoin-gui.menu
- debian/bitcoind
  debian/compat
  debian/control
  debian/control.in
@@ -24,7 +23,8 @@ Files: debian/NEWS
  debian/patches/1001_use_system_json-spirit.patch
  debian/patches/1002_use_non-local_system_wxWidgets.patch
  debian/patches/1003_link_all_dynamically.patch
- debian/patches/2001_avoid_arch-specific_optimizations.patch
+ debian/patches/1004_allow_overriding_optimizations.patch
+ debian/patches/2002_add_Boost_-mt_decoration.patch
  debian/patches/README
  debian/patches/series
  debian/source/format
