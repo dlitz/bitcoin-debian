@@ -75,9 +75,9 @@ dbver_old = 4.7
 # ease backporting
 boostver =
 boostoldver = 1.35
-boostdep = $(foreach dep,$1,libboost-$(dep)$(boostver)-dev | libboost-$(dep)$(boostoldver)-dev$(comma) )
+boostdep = $(foreach dep,$1,libboost-$(dep)$(boostver)-dev (>> $(boostoldver)) | libboost-$(dep)$(boostoldver)-dev$(comma) )
 
-CDBS_BUILD_DEPENDS += , $(call boostdep,system), libdb$(dbver)++-dev, libssl-dev, libcrypto++-dev, pkg-config, libglib2.0-dev
+CDBS_BUILD_DEPENDS += , $(call boostdep,system), libdb$(dbver)++-dev | libdb4.6++-dev, libssl-dev, libcrypto++-dev, pkg-config, libglib2.0-dev
 # TODO: Drop this when maybe system json is used some day
 CDBS_BUILD_DEPENDS += , $(call boostdep,filesystem program-options thread)
 
