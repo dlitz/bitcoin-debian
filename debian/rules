@@ -48,8 +48,8 @@ DEB_MAKE_MAKEFILE = makefile.unix
 DEB_MAKE_BUILD_TARGET = bitcoind
 
 # Respect DEB_BUILD_OPTIONS, and suppress arch-specific optimizations
-CFLAGS_OPTIMIZE = $(if $(filter noopt,$(DEB_BUILD_OPTIONS))-O0,-02)
-CFLAGS_OPTIMIZEMORE = $(if $(filter noopt,$(DEB_BUILD_OPTIONS))-O0,-03)
+CFLAGS_OPTIMIZEMORE = $(if $(filter noopt,$(DEB_BUILD_OPTIONS))-O0,-O3)
+DEB_MAKE_EXTRA_ARGS += CFLAGS_OPTIMIZEMORE="$(CFLAGS_OPTIMIZEMORE)"
 
 # Readd default flags (upstream bogusly use CFLAGS for C++)
 CFLAGS += -D__WXGTK__ -DNOPCH -DUSE_SSL
