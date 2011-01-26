@@ -1,1 +1,2 @@
-src/bitcoind usr/bin
+debian/bitcoind usr/bin
+src/bitcoind usr/lib/bitcoin

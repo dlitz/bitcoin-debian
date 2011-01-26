@@ -91,3 +91,7 @@ pre-build::
 clean::
 	rm -rf src/obj
 	rm -f src/bitcoind
+
+# Ensure wrapper is set executable
+binary-post-install/bitcoin-cli::
+	chmod +x $(cdbs_pkgdestdir)usr/bin/bitcoind

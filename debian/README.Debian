@@ -1,3 +1,14 @@
+Wrapper to ease initial startup
+===============================
+
+Debian ships with a small wrapper for bitcoind to ease initial startup:
+
+  * Store a random generated password in ~/.bitcoin/bitcoin.conf
+  * Setup ~/.bitcoin/DB_CONFIG to purge no longer needed dblog files
+
+Above is done only when the respective files do not already exist.
+
+
 Upgrading Problems
 ==================
 
