@@ -13,6 +13,7 @@ Files: debian/NEWS
  debian/bitcoin-cli.lintian-overrides
  debian/bitcoin-cli.manpages
  debian/bitcoin-gui.menu
+ debian/bitcoind
  debian/compat
  debian/control
  debian/control.in
