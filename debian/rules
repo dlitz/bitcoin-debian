@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 # -*- mode: makefile; coding: utf-8 -*-
-# Copyright © 2010 Jonas Smedegaard <dr@jones.dk>
+# Copyright © 2010-2011 Jonas Smedegaard <dr@jones.dk>
 # Description: Main Debian packaging script for Bitcoin
 #
 # This program is free software; you can redistribute it and/or
@@ -27,9 +27,9 @@ CDBS_BUILD_DEPENDS_rules_utils_copyright-check =
 
 DEB_UPSTREAM_URL = http://downloads.sourceforge.net/sourceforge/bitcoin
 DEB_UPSTREAM_TARBALL_BASENAME_MANGLE = s/$$/-linux/
-DEB_UPSTREAM_TARBALL_SRCDIR = $(DEB_UPSTREAM_PACKAGE)-$(DEB_UPSTREAM_TARBALL_VERSION)
-
-DEB_UPSTREAM_TARBALL_MD5 = 67c0d4a5c7310a94ee1ed8b2effa22cb
+#DEB_UPSTREAM_TARBALL_SRCDIR = $(DEB_UPSTREAM_PACKAGE)-$(DEB_UPSTREAM_TARBALL_VERSION)
+DEB_UPSTREAM_TARBALL_SRCDIR = $(DEB_UPSTREAM_PACKAGE)-0.3.20
+DEB_UPSTREAM_TARBALL_MD5 = e10954969479c0bcee16cce5061ddb20
 
 # source-less binary
 DEB_UPSTREAM_REPACKAGE_EXCLUDES += ./bin/
