@@ -1,15 +1,15 @@
-Format: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?rev=162
+Format: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?rev=166
 Upstream-Name: Bitcoin
 Upstream-Contact: Satoshi Nakamoto <satoshin@gmx.com>
 Source: http://sourceforge.net/projects/bitcoin/files/
-Copyright: 2009-2010, Bitcoin Developers
-License: Expat
-
 Files-Excluded: bin/*
 Comment: source-less binaries
-
 Files-Excluded: src/cryptopp/*
 Comment: unneeded external project sources
+
+Files: *
+Copyright: 2009-2011, Bitcoin Developers
+License: Expat
 
 Files: src/json/*
 Copyright: 2007-2009, John W. Wilkinson
@@ -24,7 +24,7 @@ Copyright: 2010, Nils Schneider
 License: Expat
 
 Files: debian/*
-Copyright: 2010, Jonas Smedegaard <dr@jones.dk>
+Copyright: 2010-2011, Jonas Smedegaard <dr@jones.dk>
 License: GPL-2+
 
 Files: debian/manpages/*
