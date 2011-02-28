@@ -1,2 +1,2 @@
 # Linked code is Expat - only Debian packaging is GPL-2+
-bitcoin-cli: possible-gpl-code-linked-with-openssl
+bitcoind: possible-gpl-code-linked-with-openssl

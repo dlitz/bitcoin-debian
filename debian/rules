@@ -62,8 +62,8 @@ CFLAGS += -D__WXDEBUG__
 #wx-cxxflags := $(shell wx-config --cxxflags)
 #CFLAGS += $(wx-cxxflags)
 
-DEB_INSTALL_EXAMPLES_bitcoin-cli += debian/examples/*
-DEB_INSTALL_MANPAGES_bitcoin-cli += debian/manpages/*
+DEB_INSTALL_EXAMPLES_bitcoind += debian/examples/*
+DEB_INSTALL_MANPAGES_bitcoind += debian/manpages/*
 
 # Local databases do not seemlessly migrate across BerkeleyDB versions.
 # If bumping versions, also add NEWS item, and update README.Debian.
@@ -84,7 +84,7 @@ CDBS_BUILD_DEPENDS += , $(call boostdep,filesystem program-options thread)
 # FIXME: when available, enable this and install into -gui package
 #CDBS_BUILD_DEPENDS += , libwxgtk2.9-dev
 
-CDBS_SUGGESTS_bitcoin-cli = db$(dbver)-util, db$(dbver_old)-util
+CDBS_SUGGESTS_bitcoind = db$(dbver)-util, db$(dbver_old)-util
 
 pre-build::
 	mkdir -p src/obj/nogui
@@ -93,5 +93,5 @@ clean::
 	rm -f src/bitcoind
 
 # Ensure wrapper is set executable
-binary-post-install/bitcoin-cli::
+binary-post-install/bitcoind::
 	chmod +x $(cdbs_pkgdestdir)usr/bin/bitcoind
