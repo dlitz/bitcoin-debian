@@ -94,4 +94,4 @@ clean::
 
 # Ensure wrapper is set executable
 binary-post-install/bitcoind::
-	chmod +x $(cdbs_pkgdestdir)usr/bin/bitcoind
+	chmod +x $(cdbs_curdestdir)usr/bin/bitcoind
