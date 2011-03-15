@@ -25,7 +25,7 @@ class CDataStream;
 class CAutoFile;
 static const unsigned int MAX_SIZE = 0x02000000;
 
-static const int VERSION = 32001;
+static const int VERSION = 32002;
 static const char* pszSubVer = "";
 
 

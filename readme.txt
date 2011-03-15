@@ -1,6 +1,6 @@
-Bitcoin 0.3.20 BETA
+Bitcoin 0.3.20.2 BETA
 
-Copyright (c) 2009-2011 Satoshi Nakamoto
+Copyright (c) 2009-2011 Bitcoin Developers
 Distributed under the MIT/X11 software license, see the accompanying
 file license.txt or http://www.opensource.org/licenses/mit-license.php.
 This product includes software developed by the OpenSSL Project for use in
