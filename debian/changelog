@@ -1,3 +1,11 @@
+bitcoin (0.3.20.2~dfsg-1) unstable; urgency=low
+
+  * New upstream release.
+  * Fix provide and replace former package name bitcoin-cli.
+    Closes: bug#618439. Thanks to Shane Wegner.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Tue, 15 Mar 2011 11:41:43 +0100
+
 bitcoin (0.3.20.01~dfsg-1) unstable; urgency=low
 
   * New upstream release.
