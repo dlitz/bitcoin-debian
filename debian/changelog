@@ -1,3 +1,13 @@
+bitcoin (0.3.20.2~dfsg-2) unstable; urgency=medium
+
+  * Fix have wrapper script execute real binary (not loop executing
+    itself).
+    Closes: bug#617290. Thanks to Philippe Gauthier and Etienne Laurin.
+  * Set urgency=medium as the only (user-exposed) binary is useless
+    without this fix and has been for some time.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Wed, 16 Mar 2011 09:11:06 +0100
+
 bitcoin (0.3.20.2~dfsg-1) unstable; urgency=low
 
   * New upstream release.
