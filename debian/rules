@@ -54,6 +54,9 @@ DEB_MAKE_EXTRA_ARGS += CXXFLAGS_OPTIMIZEMORE="$(CXXFLAGS_OPTIMIZEMORE)"
 CXXFLAGS += -D__WXGTK__ -DNOPCH -DUSE_SSL
 #CXXFLAGS += -Wno-invalid-offsetof -Wformat
 
+# Silence seemingly harmless noise about unused variables
+CXXFLAGS += -Wno-unused-variable
+
 # Use optimized miner for amd64 only
 CXXFLAGS += $(if $(filter amd64,$(DEB_HOST_ARCH)),-DFOURWAYSSE2)
 
