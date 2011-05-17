@@ -1,11 +1,11 @@
 Description: Add phtread linker option
 Author: Jonas Smedegaard <dr@jones.dk>
 Bug-Debian: http://bugs.debian.org/615619
-Last-Update: 2011-02-28
+Last-Update: 2011-05-17
 --- a/src/makefile.unix
 +++ b/src/makefile.unix
-@@ -26,6 +26,7 @@
-    -l crypto \
+@@ -32,6 +32,7 @@
+ LIBS+= \
     $(CRYPTOPPLIBS) \
     -l gthread-2.0 \
 +   -l pthread \

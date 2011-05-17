@@ -1,30 +1,20 @@
 Description: Avoid static linking - just do simple linking
 Author: Jonas Smedegaard <dr@jones.dk>
-Last-Update: 2010-12-28
+Last-Update: 2011-05-17
 --- a/src/makefile.unix
 +++ b/src/makefile.unix
-@@ -9,9 +9,7 @@
- 
- # for wxWidgets 2.9.1, add -l Xxf86vm
- WXLIBS= \
-- -Wl,-Bstatic \
-    -l wx_gtk2ud-2.9 \
-- -Wl,-Bdynamic \
-    -l gtk-x11-2.0 \
-    -l SM
- 
-@@ -19,7 +17,6 @@
+@@ -16,7 +16,6 @@
  
  # for boost 1.37, add -mt to the boost libraries
  LIBS= \
 - -Wl,-Bstatic \
-    -l boost_system-mt \
-    -l boost_filesystem-mt \
-    -l boost_program_options-mt \
-@@ -27,7 +24,6 @@
-    -l db_cxx \
-    -l ssl \
-    -l crypto \
+    -l boost_system \
+    -l boost_filesystem \
+    -l boost_program_options \
+@@ -31,7 +30,6 @@
+ endif
+ 
+ LIBS+= \
 - -Wl,-Bdynamic \
     $(CRYPTOPPLIBS) \
     -l gthread-2.0 \
