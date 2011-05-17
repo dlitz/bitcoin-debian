@@ -88,7 +88,7 @@ CDBS_SUGGESTS_bitcoind = db$(dbver)-util, db$(dbver_old)-util
 pre-build::
 	mkdir -p src/obj/nogui
 clean::
-	rm -rf src/obj
+	find src/obj -type f -not -name .gitignore -delete
 	rm -f src/bitcoind
 
 # Ensure wrapper is set executable
