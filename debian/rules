@@ -47,19 +47,15 @@ DEB_MAKE_MAKEFILE = makefile.unix
 DEB_MAKE_BUILD_TARGET = bitcoind
 
 # Respect DEB_BUILD_OPTIONS, and suppress arch-specific optimizations
-CFLAGS_OPTIMIZEMORE = $(if $(filter noopt,$(DEB_BUILD_OPTIONS))-O0,-O3)
-DEB_MAKE_EXTRA_ARGS += CFLAGS_OPTIMIZEMORE="$(CFLAGS_OPTIMIZEMORE)"
+CXXFLAGS_OPTIMIZEMORE = $(if $(filter noopt,$(DEB_BUILD_OPTIONS))-O0,-O3)
+DEB_MAKE_EXTRA_ARGS += CXXFLAGS_OPTIMIZEMORE="$(CXXFLAGS_OPTIMIZEMORE)"
 
-# Readd default flags (upstream bogusly use CFLAGS for C++)
-CFLAGS += -D__WXGTK__ -DNOPCH -DUSE_SSL
-#CFLAGS += -Wno-invalid-offsetof -Wformat
+# Readd default flags
+CXXFLAGS += -D__WXGTK__ -DNOPCH -DUSE_SSL
+#CXXFLAGS += -Wno-invalid-offsetof -Wformat
 
 # Use optimized miner for amd64 only
-CFLAGS += $(if $(filter amd64,$(DEB_HOST_ARCH)),-DFOURWAYSSE2)
-
-CFLAGS += -D__WXDEBUG__
-#wx-cxxflags := $(shell wx-config --cxxflags)
-#CFLAGS += $(wx-cxxflags)
+CXXFLAGS += $(if $(filter amd64,$(DEB_HOST_ARCH)),-DFOURWAYSSE2)
 
 DEB_INSTALL_EXAMPLES_bitcoind += debian/examples/*
 DEB_INSTALL_MANPAGES_bitcoind += debian/manpages/*
