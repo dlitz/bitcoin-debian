@@ -12,19 +12,18 @@ Above is done only when the respective files do not already exist.
 Upgrading Problems
 ==================
 
-This version of Bitcoin uses Berkeley DB 4.8.
+Bitcoin uses a recent (at compile time) version of Berkeley DB.
 
-Bitcoin unfortunately does not automatically update its database, so if
-you have previously used other versions of Bitcoin, the local database
-may be incompatible - most likely Berkeley DB 4.7.
+Unfortunately Bitcoin is not clever enough to automatically update its
+database, so if you fail to restart Bitcoin after a package update, the
+database may be outdated and need manual update.
 
-If you experience problems, you may try to upgrade the database manually
-using something like the following:
+The following might work:
 
-    db4.7_recover -h ~/.bitcoin
-    db4.8_upgrade -h ~/.bitcoin wallet.dat
+    db4.8_recover -h ~/.bitcoin
+    db_upgrade -h ~/.bitcoin wallet.dat
 
-For above commands you need the packages db4.7-util and db4.8-util
-installed - or the equivalent for other versions.
+Above commands need the packages db-util and db4.8-util installed.
+If that fails then try with db4.7-util instead.
 
- -- Jonas Smedegaard <dr@jones.dk>  Fri, 07 Jan 2011 21:03:36 +0100
+ -- Jonas Smedegaard <dr@jones.dk>  Tue, 17 May 2011 14:19:00 +0200

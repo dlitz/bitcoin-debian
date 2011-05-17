@@ -64,11 +64,6 @@ CFLAGS += -D__WXDEBUG__
 DEB_INSTALL_EXAMPLES_bitcoind += debian/examples/*
 DEB_INSTALL_MANPAGES_bitcoind += debian/manpages/*
 
-# Local databases do not seemlessly migrate across BerkeleyDB versions.
-# If bumping versions, also add NEWS item, and update README.Debian.
-dbver = 4.8
-dbver_old = 4.7
-
 # Apparently any recent boost is ok.  Unversioned Boost in Lenny is too
 # old, however (do not include libboost-system*), so add fallback to
 # ease backporting
@@ -76,14 +71,14 @@ boostver =
 boostoldver = 1.35
 boostdep = $(foreach dep,$1,libboost-$(dep)$(boostver)-dev (>> $(boostoldver)) | libboost-$(dep)$(boostoldver)-dev$(comma) )
 
-CDBS_BUILD_DEPENDS += , $(call boostdep,system), libdb$(dbver)++-dev | libdb4.6++-dev, libssl-dev, libcrypto++-dev, pkg-config, libglib2.0-dev
+CDBS_BUILD_DEPENDS += , $(call boostdep,system), libdb++-dev | libdb4.6++-dev, libssl-dev, libcrypto++-dev, pkg-config, libglib2.0-dev
 # TODO: Drop this when maybe system json is used some day
 CDBS_BUILD_DEPENDS += , $(call boostdep,filesystem program-options thread)
 
 # FIXME: when available, enable this and install into -gui package
 #CDBS_BUILD_DEPENDS += , libwxgtk2.9-dev
 
-CDBS_SUGGESTS_bitcoind = db$(dbver)-util, db$(dbver_old)-util
+CDBS_SUGGESTS_bitcoind = db-util, db4.8-util, db4.7-util
 
 pre-build::
 	mkdir -p src/obj/nogui
