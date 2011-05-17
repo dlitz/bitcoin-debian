@@ -1,4 +1,4 @@
-Format: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?rev=166
+Format: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?rev=174
 Upstream-Name: Bitcoin
 Upstream-Contact: Satoshi Nakamoto <satoshin@gmx.com>
 Source: http://sourceforge.net/projects/bitcoin/files/
@@ -76,8 +76,8 @@ License: GPL-2+
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  General Public License for more details.
 Comment:
- On Debian systems, the complete text of the GNU General Public License
- (GPL) version 2 can be found in '/usr/share/common-licenses/GPL-2'.
+ On Debian systems the GNU General Public License (GPL) version 2 is
+ located in '/usr/share/common-licenses/GPL-2'.
  .
  You should have received a copy of the GNU General Public License along
  with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -87,8 +87,8 @@ License: GPL-3+
  under the terms of the GNU General Public License, Version 3 or any
  later version published by the Free Software Foundation.
 Comment:
- On Debian systems, the complete text of the GNU General Public License
- (GPL) version 3 can be found in '/usr/share/common-licenses/GPL-3'.
+ On Debian systems the GNU General Public License (GPL) version 3 is
+ located in '/usr/share/common-licenses/GPL-3'.
  .
  You should have received a copy of the GNU General Public License along
  with this program.  If not, see <http://www.gnu.org/licenses/>.
