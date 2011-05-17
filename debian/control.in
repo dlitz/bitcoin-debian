@@ -13,8 +13,6 @@ Package: bitcoind
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Suggests: ${cdbs:Suggests}
-Conflicts: bitcoin-cli
-Replaces: bitcoin-cli
 Description: peer-to-peer network based anonymous digital currency - daemon
  Bitcoin is a free open source peer-to-peer electronic cash system that
  is completely decentralized, without the need for a central server or
