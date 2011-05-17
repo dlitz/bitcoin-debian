@@ -1,0 +1,14 @@
+Description: Really unset USE_UPNP as apparently intended
+Author: Jonas Smedegaard <dr@jones.dk>
+Last-Update: 2011-05-17
+--- a/src/makefile.unix
++++ b/src/makefile.unix
+@@ -8,7 +8,7 @@
+ 
+ WXLIBS=$(shell wx-config --libs)
+ 
+-USE_UPNP:=0
++#USE_UPNP:=0
+ 
+ DEFS=-DNOPCH -DFOURWAYSSE2 -DUSE_SSL
+ 
