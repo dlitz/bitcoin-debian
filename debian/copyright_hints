@@ -1,4 +1,4 @@
-Format: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?rev=166
+Format: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?rev=174
 Upstream-Name: FIXME
 Upstream-Contact: FIXME
 Source: FIXME
@@ -30,10 +30,13 @@ Files: debian/NEWS
  debian/source/local-options
  debian/watch
  locale/readme.txt
+ src/.gitignore
  src/README.md
- src/changelog.txt
  src/coding.txt
+ src/contrib/gitian.yml
  src/locale/readme.txt
+ src/obj/.gitignore
+ src/obj/nogui/.gitignore
  src/rc/addressbook16.bmp
  src/rc/addressbook16mask.bmp
  src/rc/addressbook20.bmp
@@ -65,7 +68,6 @@ License: UNKNOWN
 
 Files: src/base58.h
  src/bignum.h
- src/build-msw.txt
  src/build-unix.txt
  src/db.cpp
  src/db.h
@@ -115,20 +117,26 @@ License: UNKNOWN
 Files: locale/de/LC_MESSAGES/bitcoin.po
  locale/es/LC_MESSAGES/bitcoin.po
  locale/it/LC_MESSAGES/bitcoin.po
- locale/nl/LC_MESSAGES/bitcoin.po
  locale/ru/LC_MESSAGES/bitcoin.po
  src/locale/de/LC_MESSAGES/bitcoin.po
  src/locale/es/LC_MESSAGES/bitcoin.po
  src/locale/it/LC_MESSAGES/bitcoin.po
- src/locale/nl/LC_MESSAGES/bitcoin.po
  src/locale/ru/LC_MESSAGES/bitcoin.po
 Copyright: 2009-2010, Bitcoin Developers\n"
 License: UNKNOWN
  FIXME
 
+Files: README
+ src/build-msw.txt
+ src/doc/README
+ src/doc/README_windows.txt
+Copyright: 2009-2011, Bitcoin Developers
+License: UNKNOWN
+ FIXME
+
 Files: license.txt
  src/license.txt
-Copyright: 2009-2010, Bitcoin Developers
+Copyright: 2009-2011, Bitcoin Developers
  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 License: MIT/X11 (BSD like)
  FIXME
@@ -151,6 +159,13 @@ Copyright: (%s mûrira dans %d blocks)"
  sous la licence logicielle MIT/X11, voir le fichier joint \n"
  à travers %d nœud"
  à travers %d nœuds"
+License: UNKNOWN
+ FIXME
+
+Files: locale/nl/LC_MESSAGES/bitcoin.po
+ src/locale/nl/LC_MESSAGES/bitcoin.po
+Copyright: 2009-2010, Bitcoin Developers\n"
+ 2009-2011, Bitcoin-ontwikkelaars\n"
 License: UNKNOWN
  FIXME
 
@@ -201,18 +216,13 @@ Copyright: /* output */
 License: UNKNOWN
  FIXME
 
-Files: readme.txt
-Copyright: 2009-2011, Bitcoin Developers
-License: UNKNOWN
- FIXME
-
 Files: src/uiproject.fbp
-Copyright: 2009-2010, Bitcoin Developers&#x0A;&#x0A;This is experimental software.&#x0A;&#x0A;Distributed under the MIT/X11 software license, see the accompanying file &#x0A;license.txt or http://www.opensource.org/licenses/mit-license.php.&#x0A;&#x0A;This product includes software developed by the OpenSSL Project for use in the &#x0A;OpenSSL Toolkit (http://www.openssl.org/) and cryptographic software written by &#x0A;Eric Young (eay@cryptsoft.com).</property>
+Copyright: 2009-2011, Bitcoin Developers&#x0A;&#x0A;This is experimental software.&#x0A;&#x0A;Distributed under the MIT/X11 software license, see the accompanying file &#x0A;license.txt or http://www.opensource.org/licenses/mit-license.php.&#x0A;&#x0A;This product includes software developed by the OpenSSL Project for use in the &#x0A;OpenSSL Toolkit (http://www.openssl.org/) and cryptographic software written by &#x0A;Eric Young (eay@cryptsoft.com) and UPnP software written by Thomas Bernard.</property>
 License: UNKNOWN
  FIXME
 
 Files: src/uibase.cpp
-Copyright: 2009-2010, Bitcoin Developers\n\nThis is experimental software.\n\nDistributed under the MIT/X11 software license, see the accompanying file \nlicense.txt or http://www.opensource.org/licenses/mit-license.php.\n\nThis product includes software developed by the OpenSSL Project for use in the \nOpenSSL Toolkit (http://www.openssl.org/) and cryptographic software written by \nEric Young (eay@cryptsoft.com)."), wxDefaultPosition, wxDefaultSize, 0 );
+Copyright: 2009-2011, Bitcoin Developers\n\nThis is experimental software.\n\nDistributed under the MIT/X11 software license, see the accompanying file \nlicense.txt or http://www.opensource.org/licenses/mit-license.php.\n\nThis product includes software developed by the OpenSSL Project for use in the \nOpenSSL Toolkit (http://www.openssl.org/) and cryptographic software written by \nEric Young (eay@cryptsoft.com) and UPnP software written by Thomas Bernard."), wxDefaultPosition, wxDefaultSize, 0 );
 License: UNKNOWN
  FIXME
 

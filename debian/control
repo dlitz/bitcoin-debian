@@ -7,7 +7,7 @@ Build-Depends: cdbs,
  debhelper (>= 6),
  dh-buildinfo,
  libboost-system-dev (>> 1.35) | libboost-system1.35-dev,
- libdb4.8++-dev | libdb4.6++-dev,
+ libdb++-dev | libdb4.6++-dev,
  libssl-dev,
  libcrypto++-dev,
  pkg-config,
@@ -15,18 +15,16 @@ Build-Depends: cdbs,
  libboost-filesystem-dev (>> 1.35) | libboost-filesystem1.35-dev,
  libboost-program-options-dev (>> 1.35) | libboost-program-options1.35-dev,
  libboost-thread-dev (>> 1.35) | libboost-thread1.35-dev
-Standards-Version: 3.9.1
+Standards-Version: 3.9.2
 Homepage: http://www.bitcoin.org/
 Vcs-Git: git://git.debian.org/git/collab-maint/bitcoin
-Vcs-Browser: http://git.debian.org/?p=collab-maint/bitcoin.git;a=summary
+Vcs-Browser: http://git.debian.org/?p=collab-maint/bitcoin.git
 
 Package: bitcoind
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Suggests: ${cdbs:Suggests}
-Conflicts: bitcoin-cli
-Replaces: bitcoin-cli
-Description: peer-to-peer network based anonymous digital currency - CLI tools
+Description: peer-to-peer network based anonymous digital currency - daemon
  Bitcoin is a free open source peer-to-peer electronic cash system that
  is completely decentralized, without the need for a central server or
  trusted parties.  Users hold the crypto keys to their own money and

@@ -1,3 +1,28 @@
+bitcoin (0.3.21~dfsg-1) unstable; urgency=low
+
+  * New upstream release.
+  * Refresh patches.
+  * Drop patch 1002: no longer needed, as upstream use pkgconfig now.
+  * Add patch 1006 to really unset USE_UPNP as aparently intended.
+  * Adjust cleanup rule to preserve .gitignore files.
+  * Update copyright file:
+    + Bump format to draft 174 of DEP-5.
+    + Shorten comments.
+  * Bump policy compliance to standards-version 3.9.2.
+  * Shorten Vcs-Browser paragraph in control file.
+  * Fix mention daemon (not CLI tools) in short description.
+  * Stop conflicting with or replace bitcoin-cli: Only transitional, no
+    longer needed.
+  * Link against unversioned berkeleydb. Update NEWS and README.Debian
+    accordingly (and improve wording while at it).
+    Closes: Bug#621425. Thanks to Ondřej Surý.
+  * This release also implicitly updates linkage against libcrypto++,
+    which closes: bug#626953, #627024.
+  * Disable linkage against not yet Debian packaged MiniUPnP.
+  * Silence seemingly harmless noise about unused variables.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Tue, 17 May 2011 15:31:24 +0200
+
 bitcoin (0.3.20.2~dfsg-2) unstable; urgency=medium
 
   * Fix have wrapper script execute real binary (not loop executing
