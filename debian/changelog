@@ -1,3 +1,12 @@
+bitcoin (0.3.21~dfsg-2) unstable; urgency=low
+
+  * Enable UPNP support:
+    + Drop patch 1006.
+    + Build-depend on libminiupnpc-dev.
+    Thanks to Matt Corallo.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Sat, 28 May 2011 15:52:44 +0200
+
 bitcoin (0.3.21~dfsg-1) unstable; urgency=low
 
   * New upstream release.

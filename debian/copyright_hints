@@ -20,7 +20,6 @@ Files: debian/NEWS
  debian/manpages/bitcoin.conf.5
  debian/patches/1000_use_system_crypto++.patch
  debian/patches/1001_use_system_json-spirit.patch
- debian/patches/1002_use_non-local_system_wxWidgets.patch
  debian/patches/1003_link_all_dynamically.patch
  debian/patches/1004_allow_overriding_optimizations.patch
  debian/patches/1005_add_pthread_linker_option.patch
