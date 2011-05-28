@@ -70,7 +70,7 @@ boostver =
 boostoldver = 1.35
 boostdep = $(foreach dep,$1,libboost-$(dep)$(boostver)-dev (>> $(boostoldver)) | libboost-$(dep)$(boostoldver)-dev$(comma) )
 
-CDBS_BUILD_DEPENDS += , $(call boostdep,system), libdb++-dev | libdb4.6++-dev, libssl-dev, libcrypto++-dev, pkg-config, libglib2.0-dev
+CDBS_BUILD_DEPENDS += , $(call boostdep,system), libdb++-dev | libdb4.6++-dev, libssl-dev, libcrypto++-dev, pkg-config, libglib2.0-dev, libminiupnpc-dev
 # TODO: Drop this when maybe system json is used some day
 CDBS_BUILD_DEPENDS += , $(call boostdep,filesystem program-options thread)
 
