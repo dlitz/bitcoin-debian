@@ -1,3 +1,16 @@
+bitcoin (0.3.21~dfsg-3) UNRELEASED; urgency=low
+
+  * Improve various usage hints:
+    + Explicitly mention in long description that bitcoind contains
+      daemon and command-line interface.
+    + Extend README.Debian with section on lack of GUI, and add primary
+      headline.
+    + Avoid installing upstream README: contains no parts relevant for
+      Debian usage.
+    Thanks to richard for suggestions (see bug#629443).
+
+ -- Jonas Smedegaard <dr@jones.dk>  Tue, 07 Jun 2011 11:16:50 +0200
+
 bitcoin (0.3.21~dfsg-2) unstable; urgency=low
 
   * Enable UPNP support:
