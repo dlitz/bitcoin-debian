@@ -79,6 +79,9 @@ CDBS_BUILD_DEPENDS += , $(call boostdep,filesystem program-options thread)
 
 CDBS_SUGGESTS_bitcoind = db-util, db4.8-util, db4.7-util
 
+# Upstream README contains no parts relevant for Debian usage
+DEB_INSTALL_DOCS_ALL =
+
 pre-build::
 	mkdir -p src/obj/nogui
 clean::
