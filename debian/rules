@@ -26,7 +26,7 @@ CDBS_BUILD_DEPENDS_rules_upstream-tarball =
 CDBS_BUILD_DEPENDS_rules_utils_copyright-check =
 
 DEB_UPSTREAM_URL = http://downloads.sourceforge.net/sourceforge/bitcoin
-DEB_UPSTREAM_TARBALL_BASENAME_MANGLE = s/$$/-linux/
+DEB_UPSTREAM_TARBALL_BASENAME_MANGLE = s/~(alpha|beta|rc)/\1/,s/$$/-linux/
 DEB_UPSTREAM_TARBALL_SRCDIR = $(DEB_UPSTREAM_PACKAGE)-$(DEB_UPSTREAM_TARBALL_VERSION)
 DEB_UPSTREAM_TARBALL_MD5 = 19e530a9b60e3a0987998a87b30d8cdc
 
