@@ -1,6 +1,11 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Distributed under the MIT/X11 software license, see the accompanying
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
+#ifndef BITCOIN_UI_H
+#define BITCOIN_UI_H
+
+#include <boost/function.hpp>
+#include "wallet.h"
 
 DECLARE_EVENT_TYPE(wxEVT_UITHREADCALL, -1)
 
@@ -12,9 +17,9 @@ extern wxLocale g_locale;
 
 void HandleCtrlA(wxKeyEvent& event);
 void UIThreadCall(boost::function0<void>);
-int ThreadSafeMessageBox(const string& message, const string& caption="Message", int style=wxOK, wxWindow* parent=NULL, int x=-1, int y=-1);
-bool ThreadSafeAskFee(int64 nFeeRequired, const string& strCaption, wxWindow* parent);
-void CalledSetStatusBar(const string& strText, int nField);
+int ThreadSafeMessageBox(const std::string& message, const std::string& caption="Message", int style=wxOK, wxWindow* parent=NULL, int x=-1, int y=-1);
+bool ThreadSafeAskFee(int64 nFeeRequired, const std::string& strCaption, wxWindow* parent);
+void CalledSetStatusBar(const std::string& strText, int nField);
 void MainFrameRepaint();
 void CreateMainWindow();
 void SetStartOnSystemStartup(bool fAutoStart);
@@ -28,8 +33,8 @@ inline int MyMessageBox(const wxString& message, const wxString& caption="Messag
     if (!fDaemon)
         return wxMessageBox(message, caption, style, parent, x, y);
 #endif
-    printf("wxMessageBox %s: %s\n", string(caption).c_str(), string(message).c_str());
-    fprintf(stderr, "%s: %s\n", string(caption).c_str(), string(message).c_str());
+    printf("wxMessageBox %s: %s\n", std::string(caption).c_str(), std::string(message).c_str());
+    fprintf(stderr, "%s: %s\n", std::string(caption).c_str(), std::string(message).c_str());
     return wxOK;
 }
 #define wxMessageBox  MyMessageBox
@@ -52,7 +57,6 @@ protected:
     void OnPaint(wxPaintEvent& event);
     void OnPaintListCtrl(wxPaintEvent& event);
     void OnMenuFileExit(wxCommandEvent& event);
-    void OnMenuOptionsGenerate(wxCommandEvent& event);
     void OnUpdateUIOptionsGenerate(wxUpdateUIEvent& event);
     void OnMenuOptionsChangeYourAddress(wxCommandEvent& event);
     void OnMenuOptionsOptions(wxCommandEvent& event);
@@ -94,8 +98,8 @@ public:
     bool fRefresh;
 
     void OnUIThreadCall(wxCommandEvent& event);
-    int GetSortIndex(const string& strSort);
-    void InsertLine(bool fNew, int nIndex, uint256 hashKey, string strSort, const wxColour& colour, const wxString& str1, const wxString& str2, const wxString& str3, const wxString& str4, const wxString& str5);
+    int GetSortIndex(const std::string& strSort);
+    void InsertLine(bool fNew, int nIndex, uint256 hashKey, std::string strSort, const wxColour& colour, const wxString& str1, const wxString& str2, const wxString& str3, const wxString& str4, const wxString& str5);
     bool DeleteLine(uint256 hashKey);
     bool InsertTransaction(const CWalletTx& wtx, bool fNew, int nIndex=-1);
     void RefreshListCtrl();
@@ -127,7 +131,6 @@ protected:
     // Event handlers
     void OnListBox(wxCommandEvent& event);
     void OnKillFocusTransactionFee(wxFocusEvent& event);
-    void OnCheckBoxLimitProcessors(wxCommandEvent& event);
     void OnCheckBoxUseProxy(wxCommandEvent& event);
     void OnKillFocusProxy(wxFocusEvent& event);
 
@@ -178,8 +181,8 @@ public:
 
     // Custom
     bool fEnabledPrev;
-    string strFromSave;
-    string strMessageSave;
+    std::string strFromSave;
+    std::string strMessageSave;
 };
 
 
@@ -213,8 +216,8 @@ public:
     void Close();
     void Repaint();
     bool Status();
-    bool Status(const string& str);
-    bool Error(const string& str);
+    bool Status(const std::string& str);
+    bool Error(const std::string& str);
     void StartTransfer();
     void OnReply2(CDataStream& vRecv);
     void OnReply3(CDataStream& vRecv);
@@ -259,7 +262,7 @@ public:
     wxString GetSelectedAddress();
     wxString GetSelectedSendingAddress();
     wxString GetSelectedReceivingAddress();
-    bool CheckIfMine(const string& strAddress, const string& strTitle);
+    bool CheckIfMine(const std::string& strAddress, const std::string& strTitle);
 };
 
 
@@ -283,11 +286,11 @@ protected:
 public:
     /** Constructor */
     CGetTextFromUserDialog(wxWindow* parent,
-                           const string& strCaption,
-                           const string& strMessage1,
-                           const string& strValue1="",
-                           const string& strMessage2="",
-                           const string& strValue2="") : CGetTextFromUserDialogBase(parent, wxID_ANY, strCaption)
+                           const std::string& strCaption,
+                           const std::string& strMessage1,
+                           const std::string& strValue1="",
+                           const std::string& strMessage2="",
+                           const std::string& strValue2="") : CGetTextFromUserDialogBase(parent, wxID_ANY, strCaption)
     {
         int x = GetSize().GetWidth();
         int y = GetSize().GetHeight();
@@ -310,9 +313,9 @@ public:
     }
 
     // Custom
-    string GetValue()  { return (string)m_textCtrl1->GetValue(); }
-    string GetValue1() { return (string)m_textCtrl1->GetValue(); }
-    string GetValue2() { return (string)m_textCtrl2->GetValue(); }
+    std::string GetValue()  { return (std::string)m_textCtrl1->GetValue(); }
+    std::string GetValue1() { return (std::string)m_textCtrl1->GetValue(); }
+    std::string GetValue2() { return (std::string)m_textCtrl2->GetValue(); }
 };
 
 
@@ -323,6 +326,7 @@ protected:
     // Event handlers
     void OnLeftButtonDClick(wxTaskBarIconEvent& event);
     void OnMenuRestore(wxCommandEvent& event);
+    void OnMenuSend(wxCommandEvent& event);
     void OnMenuOptions(wxCommandEvent& event);
     void OnUpdateUIGenerate(wxUpdateUIEvent& event);
     void OnMenuGenerate(wxCommandEvent& event);
@@ -342,3 +346,5 @@ public:
 
 DECLARE_EVENT_TABLE()
 };
+
+#endif

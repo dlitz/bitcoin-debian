@@ -3,6 +3,12 @@
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
 
 #include "headers.h"
+#include "irc.h"
+#include "net.h"
+#include "strlcpy.h"
+
+using namespace std;
+using namespace boost;
 
 int nGotIRCAddresses = 0;
 bool fGotExternalIP = false;
@@ -41,7 +47,7 @@ bool DecodeAddress(string str, CAddress& addr)
         return false;
     memcpy(&tmp, &vch[0], sizeof(tmp));
 
-    addr = CAddress(tmp.ip, tmp.port, NODE_NETWORK);
+    addr = CAddress(tmp.ip, ntohs(tmp.port), NODE_NETWORK);
     return true;
 }
 
@@ -215,25 +221,15 @@ bool GetIPFromIRC(SOCKET hSocket, string strMyName, unsigned int& ipRet)
         return false;
     string strHost = str.substr(str.rfind("@")+1);
 
-    unsigned int a=0, b=0, c=0, d=0;
-    if (sscanf(strHost.c_str(), "%u.%u.%u.%u", &a, &b, &c, &d) == 4 &&
-        inet_addr(strHost.c_str()) != INADDR_NONE)
-    {
-        printf("GetIPFromIRC() userhost is IP %s\n", strHost.c_str());
-        ipRet = CAddress(strHost).ip;
-    }
-    else
-    {
-        // Hybrid IRC used by lfnet always returns IP when you userhost yourself,
-        // but in case another IRC is ever used this should work.
-        printf("GetIPFromIRC() got userhost %s\n", strHost.c_str());
-        if (fUseProxy)
-            return false;
-        struct hostent* phostent = gethostbyname(strHost.c_str());
-        if (!phostent || !phostent->h_addr_list || !phostent->h_addr_list[0])
-            return false;
-        ipRet = *(u_long*)phostent->h_addr_list[0];
-    }
+    // Hybrid IRC used by lfnet always returns IP when you userhost yourself,
+    // but in case another IRC is ever used this should work.
+    printf("GetIPFromIRC() got userhost %s\n", strHost.c_str());
+    if (fUseProxy)
+        return false;
+    CAddress addr(strHost, 0, true);
+    if (!addr.IsValid())
+        return false;
+    ipRet = addr.ip;
 
     return true;
 }
@@ -272,13 +268,13 @@ void ThreadIRCSeed2(void* parg)
     while (!fShutdown)
     {
         //CAddress addrConnect("216.155.130.130:6667"); // chat.freenode.net
-        CAddress addrConnect("92.243.23.21:6667"); // irc.lfnet.org
+        CAddress addrConnect("92.243.23.21", 6667); // irc.lfnet.org
         if (!fTOR)
         {
             //struct hostent* phostent = gethostbyname("chat.freenode.net");
-            struct hostent* phostent = gethostbyname("irc.lfnet.org");
-            if (phostent && phostent->h_addr_list && phostent->h_addr_list[0])
-                addrConnect = CAddress(*(u_long*)phostent->h_addr_list[0], htons(6667));
+            CAddress addrIRC("irc.lfnet.org", 6667, true);
+            if (addrIRC.IsValid())
+                addrConnect = addrIRC;
         }
 
         SOCKET hSocket;
@@ -346,9 +342,16 @@ void ThreadIRCSeed2(void* parg)
                 Send(hSocket, strprintf("NICK %s\r", strMyName.c_str()).c_str());
             }
         }
-
-        Send(hSocket, fTestNet ? "JOIN #bitcoinTEST\r" : "JOIN #bitcoin\r");
-        Send(hSocket, fTestNet ? "WHO #bitcoinTEST\r"  : "WHO #bitcoin\r");
+        
+        if (fTestNet) {
+            Send(hSocket, "JOIN #bitcoinTEST\r");
+            Send(hSocket, "WHO #bitcoinTEST\r");
+        } else {
+            // randomly join #bitcoin00-#bitcoin99
+            int channel_number = GetRandInt(100);
+            Send(hSocket, strprintf("JOIN #bitcoin%02d\r", channel_number).c_str());
+            Send(hSocket, strprintf("WHO #bitcoin%02d\r", channel_number).c_str());
+        }
 
         int64 nStart = GetTime();
         string strLine;
@@ -390,7 +393,7 @@ void ThreadIRCSeed2(void* parg)
                 {
                     addr.nTime = GetAdjustedTime();
                     if (AddAddress(addr, 51 * 60))
-                        printf("IRC got new address\n");
+                        printf("IRC got new address: %s\n", addr.ToString().c_str());
                     nGotIRCAddresses++;
                 }
                 else

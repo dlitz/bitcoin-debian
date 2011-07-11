@@ -1,14 +1,20 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Distributed under the MIT/X11 software license, see the accompanying
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
-
 #include "headers.h"
+#include "db.h"
+#include "rpc.h"
+#include "net.h"
+#include "init.h"
+#include "strlcpy.h"
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
+#include <boost/interprocess/sync/file_lock.hpp>
 
+using namespace std;
+using namespace boost;
 
-
-
-
-
+CWallet* pwalletMain;
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -42,6 +48,8 @@ void Shutdown(void* parg)
         StopNode();
         DBFlush(true);
         boost::filesystem::remove(GetPidFile());
+        UnregisterWallet(pwalletMain);
+        delete pwalletMain;
         CreateThread(ExitTimeout, NULL);
         Sleep(50);
         printf("Bitcoin exiting\n\n");
@@ -71,7 +79,6 @@ void HandleSIGTERM(int)
 //
 // Start
 //
-
 #ifndef GUI
 int main(int argc, char* argv[])
 {
@@ -134,15 +141,23 @@ bool AppInit2(int argc, char* argv[])
 
     if (mapArgs.count("-datadir"))
     {
-        filesystem::path pathDataDir = filesystem::system_complete(mapArgs["-datadir"]);
-        strlcpy(pszSetDataDir, pathDataDir.string().c_str(), sizeof(pszSetDataDir));
+        if (filesystem::is_directory(filesystem::system_complete(mapArgs["-datadir"])))
+        {
+            filesystem::path pathDataDir = filesystem::system_complete(mapArgs["-datadir"]);
+            strlcpy(pszSetDataDir, pathDataDir.string().c_str(), sizeof(pszSetDataDir));
+        }
+        else
+        {
+            fprintf(stderr, "Error: Specified directory does not exist\n");
+            Shutdown(NULL);
+        }
     }
+
 
     ReadConfigFile(mapArgs, mapMultiArgs); // Must be done after processing datadir
 
     if (mapArgs.count("-?") || mapArgs.count("--help"))
     {
-        string beta = VERSION_IS_BETA ? _(" beta") : "";
         string strUsage = string() +
           _("Bitcoin version") + " " + FormatFullVersion() + "\n\n" +
           _("Usage:") + "\t\t\t\t\t\t\t\t\t\t\n" +
@@ -157,7 +172,9 @@ bool AppInit2(int argc, char* argv[])
             "  -gen=0           \t\t  " + _("Don't generate coins\n") +
             "  -min             \t\t  " + _("Start minimized\n") +
             "  -datadir=<dir>   \t\t  " + _("Specify data directory\n") +
+            "  -timeout=<n>     \t  "   + _("Specify connection timeout (in milliseconds)\n") +
             "  -proxy=<ip:port> \t  "   + _("Connect through socks4 proxy\n") +
+            "  -dns             \t  "   + _("Allow DNS lookups for addnode and connect\n") +
             "  -addnode=<ip>    \t  "   + _("Add a node to connect to\n") +
             "  -connect=<ip>    \t\t  " + _("Connect only to the specified node\n") +
             "  -nolisten        \t  "   + _("Don't accept connections from outside\n") +
@@ -208,6 +225,7 @@ bool AppInit2(int argc, char* argv[])
     }
 
     fDebug = GetBoolArg("-debug");
+    fAllowDNS = GetBoolArg("-dns");
 
 #ifndef __WXMSW__
     fDaemon = GetBoolArg("-daemon");
@@ -326,7 +344,7 @@ bool AppInit2(int argc, char* argv[])
     // Make sure only a single bitcoin process is using the data directory.
     string strLockFile = GetDataDir() + "/.lock";
     FILE* file = fopen(strLockFile.c_str(), "a"); // empty lock file; created if it doesn't exist.
-    fclose(file);
+    if (file) fclose(file);
     static boost::interprocess::file_lock lock(strLockFile.c_str());
     if (!lock.try_lock())
     {
@@ -368,16 +386,19 @@ bool AppInit2(int argc, char* argv[])
     printf("Loading wallet...\n");
     nStart = GetTimeMillis();
     bool fFirstRun;
-    if (!LoadWallet(fFirstRun))
+    pwalletMain = new CWallet("wallet.dat");
+    if (!pwalletMain->LoadWallet(fFirstRun))
         strErrors += _("Error loading wallet.dat      \n");
     printf(" wallet      %15"PRI64d"ms\n", GetTimeMillis() - nStart);
+
+    RegisterWallet(pwalletMain);
 
     CBlockIndex *pindexRescan = pindexBest;
     if (GetBoolArg("-rescan"))
         pindexRescan = pindexGenesisBlock;
     else
     {
-        CWalletDB walletdb;
+        CWalletDB walletdb("wallet.dat");
         CBlockLocator locator;
         if (walletdb.ReadBestBlock(locator))
             pindexRescan = locator.GetBlockIndex();
@@ -386,7 +407,7 @@ bool AppInit2(int argc, char* argv[])
     {
         printf("Rescanning last %i blocks (from block %i)...\n", pindexBest->nHeight - pindexRescan->nHeight, pindexRescan->nHeight);
         nStart = GetTimeMillis();
-        ScanForWalletTransactions(pindexRescan);
+        pwalletMain->ScanForWalletTransactions(pindexRescan, true);
         printf(" rescan      %15"PRI64d"ms\n", GetTimeMillis() - nStart);
     }
 
@@ -395,10 +416,11 @@ bool AppInit2(int argc, char* argv[])
         //// debug print
         printf("mapBlockIndex.size() = %d\n",   mapBlockIndex.size());
         printf("nBestHeight = %d\n",            nBestHeight);
-        printf("mapKeys.size() = %d\n",         mapKeys.size());
+        printf("mapKeys.size() = %d\n",         pwalletMain->mapKeys.size());
+        printf("setKeyPool.size() = %d\n",      pwalletMain->setKeyPool.size());
         printf("mapPubKeys.size() = %d\n",      mapPubKeys.size());
-        printf("mapWallet.size() = %d\n",       mapWallet.size());
-        printf("mapAddressBook.size() = %d\n",  mapAddressBook.size());
+        printf("mapWallet.size() = %d\n",       pwalletMain->mapWallet.size());
+        printf("mapAddressBook.size() = %d\n",  pwalletMain->mapAddressBook.size());
 
     if (!strErrors.empty())
     {
@@ -407,7 +429,7 @@ bool AppInit2(int argc, char* argv[])
     }
 
     // Add wallet transactions that aren't already in a block to mapTransactions
-    ReacceptWalletTransactions();
+    pwalletMain->ReacceptWalletTransactions();
 
     //
     // Parameters
@@ -416,6 +438,13 @@ bool AppInit2(int argc, char* argv[])
     {
         PrintBlockTree();
         return false;
+    }
+
+    if (mapArgs.count("-timeout"))
+    {
+        int nNewTimeout = GetArg("-timeout", 5000);
+        if (nNewTimeout > 0 && nNewTimeout < 600000)
+            nConnectTimeout = nNewTimeout;
     }
 
     if (mapArgs.count("-printblock"))
@@ -456,16 +485,18 @@ bool AppInit2(int argc, char* argv[])
 
     if (mapArgs.count("-addnode"))
     {
-        foreach(string strAddr, mapMultiArgs["-addnode"])
+        BOOST_FOREACH(string strAddr, mapMultiArgs["-addnode"])
         {
-            CAddress addr(strAddr, NODE_NETWORK);
+            CAddress addr(strAddr, fAllowDNS);
             addr.nTime = 0; // so it won't relay unless successfully connected
             if (addr.IsValid())
                 AddAddress(addr);
         }
     }
 
-    if (mapArgs.count("-dnsseed"))
+    if (GetBoolArg("-nodnsseed"))
+        printf("DNS seeding disabled\n");
+    else
         DNSAddressSeed();
 
     if (mapArgs.count("-paytxfee"))

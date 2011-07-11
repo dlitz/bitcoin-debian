@@ -1,6 +1,16 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Distributed under the MIT/X11 software license, see the accompanying
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
+#ifndef BITCOIN_NET_H
+#define BITCOIN_NET_H
+
+#include <deque>
+#include <boost/array.hpp>
+#include <openssl/rand.h>
+
+#ifndef __WXMSW__
+#include <arpa/inet.h>
+#endif
 
 class CMessageHeader;
 class CAddress;
@@ -9,10 +19,13 @@ class CRequestTracker;
 class CNode;
 class CBlockIndex;
 extern int nBestHeight;
+extern int nConnectTimeout;
 
 
 
-inline unsigned short GetDefaultPort() { return fTestNet ? htons(18333) : htons(8333); }
+inline unsigned int ReceiveBufferSize() { return 1000*GetArg("-maxreceivebuffer", 10*1000); }
+inline unsigned int SendBufferSize() { return 1000*GetArg("-maxsendbuffer", 10*1000); }
+inline unsigned short GetDefaultPort() { return fTestNet ? 18333 : 8333; }
 static const unsigned int PUBLISH_HOPS = 5;
 enum
 {
@@ -22,7 +35,9 @@ enum
 
 
 
-bool ConnectSocket(const CAddress& addrConnect, SOCKET& hSocketRet);
+bool ConnectSocket(const CAddress& addrConnect, SOCKET& hSocketRet, int nTimeout=nConnectTimeout);
+bool Lookup(const char *pszName, std::vector<CAddress>& vaddr, int nServices, int nMaxSolutions, bool fAllowLookup = false, int portDefault = 0, bool fAllowPort = false);
+bool Lookup(const char *pszName, CAddress& addr, int nServices, bool fAllowLookup = false, int portDefault = 0, bool fAllowPort = false);
 bool GetMyExternalIP(unsigned int& ipRet);
 bool AddAddress(CAddress addr, int64 nTimePenalty=0);
 void AddressCurrentlyConnected(const CAddress& addr);
@@ -32,7 +47,7 @@ void AbandonRequests(void (*fn)(void*, CDataStream&), void* param1);
 bool AnySubscribed(unsigned int nChannel);
 void MapPort(bool fMapPort);
 void DNSAddressSeed();
-bool BindListenPort(string& strError=REF(string()));
+bool BindListenPort(std::string& strError=REF(std::string()));
 void StartNode(void* parg);
 bool StopNode();
 
@@ -87,12 +102,12 @@ public:
             READWRITE(nChecksum);
     )
 
-    string GetCommand()
+    std::string GetCommand()
     {
         if (pchCommand[COMMAND_SIZE-1] == 0)
-            return string(pchCommand, pchCommand + strlen(pchCommand));
+            return std::string(pchCommand, pchCommand + strlen(pchCommand));
         else
-            return string(pchCommand, pchCommand + COMMAND_SIZE);
+            return std::string(pchCommand, pchCommand + COMMAND_SIZE);
     }
 
     bool IsValid()
@@ -156,7 +171,7 @@ public:
     {
         Init();
         ip = ipIn;
-        port = (portIn == 0 ? GetDefaultPort() : portIn);
+        port = htons(portIn == 0 ? GetDefaultPort() : portIn);
         nServices = nServicesIn;
     }
 
@@ -168,18 +183,28 @@ public:
         nServices = nServicesIn;
     }
 
-    explicit CAddress(const char* pszIn, uint64 nServicesIn=NODE_NETWORK)
+    explicit CAddress(const char* pszIn, int portIn, bool fNameLookup = false, uint64 nServicesIn=NODE_NETWORK)
     {
         Init();
-        SetAddress(pszIn);
-        nServices = nServicesIn;
+        Lookup(pszIn, *this, nServicesIn, fNameLookup, portIn);
     }
 
-    explicit CAddress(string strIn, uint64 nServicesIn=NODE_NETWORK)
+    explicit CAddress(const char* pszIn, bool fNameLookup = false, uint64 nServicesIn=NODE_NETWORK)
     {
         Init();
-        SetAddress(strIn.c_str());
-        nServices = nServicesIn;
+        Lookup(pszIn, *this, nServicesIn, fNameLookup, 0, true);
+    }
+
+    explicit CAddress(std::string strIn, int portIn, bool fNameLookup = false, uint64 nServicesIn=NODE_NETWORK)
+    {
+        Init();
+        Lookup(strIn.c_str(), *this, nServicesIn, fNameLookup, portIn);
+    }
+
+    explicit CAddress(std::string strIn, bool fNameLookup = false, uint64 nServicesIn=NODE_NETWORK)
+    {
+        Init();
+        Lookup(strIn.c_str(), *this, nServicesIn, fNameLookup, 0, true);
     }
 
     void Init()
@@ -187,35 +212,9 @@ public:
         nServices = NODE_NETWORK;
         memcpy(pchReserved, pchIPv4, sizeof(pchReserved));
         ip = INADDR_NONE;
-        port = GetDefaultPort();
+        port = htons(GetDefaultPort());
         nTime = 100000000;
         nLastTry = 0;
-    }
-
-    bool SetAddress(const char* pszIn)
-    {
-        ip = INADDR_NONE;
-        port = GetDefaultPort();
-        char psz[100];
-        strlcpy(psz, pszIn, sizeof(psz));
-        unsigned int a=0, b=0, c=0, d=0, e=0;
-        if (sscanf(psz, "%u.%u.%u.%u:%u", &a, &b, &c, &d, &e) < 4)
-            return false;
-        char* pszPort = strchr(psz, ':');
-        if (pszPort)
-        {
-            *pszPort++ = '\0';
-            port = htons(atoi(pszPort));
-            if (atoi(pszPort) < 0 || atoi(pszPort) > USHRT_MAX)
-                port = htons(USHRT_MAX);
-        }
-        ip = inet_addr(psz);
-        return IsValid();
-    }
-
-    bool SetAddress(string strIn)
-    {
-        return SetAddress(strIn.c_str());
     }
 
     IMPLEMENT_SERIALIZE
@@ -259,16 +258,16 @@ public:
         return false;
     }
 
-    vector<unsigned char> GetKey() const
+    std::vector<unsigned char> GetKey() const
     {
         CDataStream ss;
         ss.reserve(18);
         ss << FLATDATA(pchReserved) << ip << port;
 
         #if defined(_MSC_VER) && _MSC_VER < 1300
-        return vector<unsigned char>((unsigned char*)&ss.begin()[0], (unsigned char*)&ss.end()[0]);
+        return std::vector<unsigned char>((unsigned char*)&ss.begin()[0], (unsigned char*)&ss.end()[0]);
         #else
-        return vector<unsigned char>(ss.begin(), ss.end());
+        return std::vector<unsigned char>(ss.begin(), ss.end());
         #endif
     }
 
@@ -287,13 +286,29 @@ public:
         return (memcmp(pchReserved, pchIPv4, sizeof(pchIPv4)) == 0);
     }
 
+    bool IsRFC1918() const
+    {
+      return IsIPv4() && (GetByte(3) == 10 ||
+        (GetByte(3) == 192 && GetByte(2) == 168) ||
+        (GetByte(3) == 172 &&
+          (GetByte(2) >= 16 && GetByte(2) <= 31)));
+    }
+
+    bool IsRFC3927() const
+    {
+      return IsIPv4() && (GetByte(3) == 169 && GetByte(2) == 254);
+    }
+
+    bool IsLocal() const
+    {
+      return IsIPv4() && (GetByte(3) == 127 ||
+          GetByte(3) == 0);
+    }
+
     bool IsRoutable() const
     {
         return IsValid() &&
-            !(GetByte(3) == 10 ||
-              (GetByte(3) == 192 && GetByte(2) == 168) ||
-              GetByte(3) == 127 ||
-              GetByte(3) == 0);
+            !(IsRFC1918() || IsRFC3927() || IsLocal());
     }
 
     bool IsValid() const
@@ -315,27 +330,22 @@ public:
         return ((unsigned char*)&ip)[3-n];
     }
 
-    string ToStringIPPort() const
+    std::string ToStringIPPort() const
     {
         return strprintf("%u.%u.%u.%u:%u", GetByte(3), GetByte(2), GetByte(1), GetByte(0), ntohs(port));
     }
 
-    string ToStringIP() const
+    std::string ToStringIP() const
     {
         return strprintf("%u.%u.%u.%u", GetByte(3), GetByte(2), GetByte(1), GetByte(0));
     }
 
-    string ToStringPort() const
+    std::string ToStringPort() const
     {
         return strprintf("%u", ntohs(port));
     }
 
-    string ToStringLog() const
-    {
-        return "";
-    }
-
-    string ToString() const
+    std::string ToString() const
     {
         return strprintf("%u.%u.%u.%u:%u", GetByte(3), GetByte(2), GetByte(1), GetByte(0), ntohs(port));
     }
@@ -383,7 +393,7 @@ public:
         hash = hashIn;
     }
 
-    CInv(const string& strType, const uint256& hashIn)
+    CInv(const std::string& strType, const uint256& hashIn)
     {
         int i;
         for (i = 1; i < ARRAYLEN(ppszTypeName); i++)
@@ -422,7 +432,7 @@ public:
         return ppszTypeName[type];
     }
 
-    string ToString() const
+    std::string ToString() const
     {
         return strprintf("%s %s", GetCommand(), hash.ToString().substr(0,20).c_str());
     }
@@ -460,21 +470,22 @@ public:
 
 
 extern bool fClient;
+extern bool fAllowDNS;
 extern uint64 nLocalServices;
 extern CAddress addrLocalHost;
 extern CNode* pnodeLocalHost;
 extern uint64 nLocalHostNonce;
-extern array<int, 10> vnThreadsRunning;
+extern boost::array<int, 10> vnThreadsRunning;
 extern SOCKET hListenSocket;
 
-extern vector<CNode*> vNodes;
+extern std::vector<CNode*> vNodes;
 extern CCriticalSection cs_vNodes;
-extern map<vector<unsigned char>, CAddress> mapAddresses;
+extern std::map<std::vector<unsigned char>, CAddress> mapAddresses;
 extern CCriticalSection cs_mapAddresses;
-extern map<CInv, CDataStream> mapRelay;
-extern deque<pair<int64, CInv> > vRelayExpiration;
+extern std::map<CInv, CDataStream> mapRelay;
+extern std::deque<std::pair<int64, CInv> > vRelayExpiration;
 extern CCriticalSection cs_mapRelay;
-extern map<CInv, int64> mapAlreadyAskedFor;
+extern std::map<CInv, int64> mapAlreadyAskedFor;
 
 // Settings
 extern int fUseProxy;
@@ -503,7 +514,7 @@ public:
     unsigned int nMessageStart;
     CAddress addr;
     int nVersion;
-    string strSubVer;
+    std::string strSubVer;
     bool fClient;
     bool fInbound;
     bool fNetworkNode;
@@ -513,7 +524,7 @@ protected:
     int nRefCount;
 public:
     int64 nReleaseTime;
-    map<uint256, CRequestTracker> mapRequests;
+    std::map<uint256, CRequestTracker> mapRequests;
     CCriticalSection cs_mapRequests;
     uint256 hashContinue;
     CBlockIndex* pindexLastGetBlocksBegin;
@@ -521,19 +532,19 @@ public:
     int nStartingHeight;
 
     // flood relay
-    vector<CAddress> vAddrToSend;
-    set<CAddress> setAddrKnown;
+    std::vector<CAddress> vAddrToSend;
+    std::set<CAddress> setAddrKnown;
     bool fGetAddr;
-    set<uint256> setKnown;
+    std::set<uint256> setKnown;
 
     // inventory based relay
-    set<CInv> setInventoryKnown;
-    vector<CInv> vInventoryToSend;
+    std::set<CInv> setInventoryKnown;
+    std::vector<CInv> vInventoryToSend;
     CCriticalSection cs_inventory;
-    multimap<int64, CInv> mapAskFor;
+    std::multimap<int64, CInv> mapAskFor;
 
     // publish and subscription
-    vector<char> vfSubscribe;
+    std::vector<char> vfSubscribe;
 
 
     CNode(SOCKET hSocketIn, CAddress addrIn, bool fInboundIn=false)
@@ -595,13 +606,13 @@ public:
 
     int GetRefCount()
     {
-        return max(nRefCount, 0) + (GetTime() < nReleaseTime ? 1 : 0);
+        return std::max(nRefCount, 0) + (GetTime() < nReleaseTime ? 1 : 0);
     }
 
     CNode* AddRef(int64 nTimeout=0)
     {
         if (nTimeout != 0)
-            nReleaseTime = max(nReleaseTime, GetTime() + nTimeout);
+            nReleaseTime = std::max(nReleaseTime, GetTime() + nTimeout);
         else
             nRefCount++;
         return this;
@@ -652,11 +663,11 @@ public:
         // Make sure not to reuse time indexes to keep things in the same order
         int64 nNow = (GetTime() - 1) * 1000000;
         static int64 nLastTime;
-        nLastTime = nNow = max(nNow, ++nLastTime);
+        nLastTime = nNow = std::max(nNow, ++nLastTime);
 
         // Each retry is 2 minutes after the last
-        nRequestTime = max(nRequestTime + 2 * 60 * 1000000, nNow);
-        mapAskFor.insert(make_pair(nRequestTime, inv));
+        nRequestTime = std::max(nRequestTime + 2 * 60 * 1000000, nNow);
+        mapAskFor.insert(std::make_pair(nRequestTime, inv));
     }
 
 
@@ -740,7 +751,7 @@ public:
         CAddress addrMe = (fUseProxy ? CAddress("0.0.0.0") : addrLocalHost);
         RAND_bytes((unsigned char*)&nLocalHostNonce, sizeof(nLocalHostNonce));
         PushMessage("version", VERSION, nLocalServices, nTime, addrYou, addrMe,
-                nLocalHostNonce, string(pszSubVer), nBestHeight);
+                    nLocalHostNonce, std::string(pszSubVer), nBestHeight);
     }
 
 
@@ -966,7 +977,7 @@ inline void RelayInventory(const CInv& inv)
 {
     // Put on lists to offer to the other nodes
     CRITICAL_BLOCK(cs_vNodes)
-        foreach(CNode* pnode, vNodes)
+        BOOST_FOREACH(CNode* pnode, vNodes)
             pnode->PushInventory(inv);
 }
 
@@ -993,7 +1004,7 @@ inline void RelayMessage<>(const CInv& inv, const CDataStream& ss)
 
         // Save original serialized message so newer versions are preserved
         mapRelay[inv] = ss;
-        vRelayExpiration.push_back(make_pair(GetTime() + 15 * 60, inv));
+        vRelayExpiration.push_back(std::make_pair(GetTime() + 15 * 60, inv));
     }
 
     RelayInventory(inv);
@@ -1025,7 +1036,7 @@ void AdvertStartPublish(CNode* pfrom, unsigned int nChannel, unsigned int nHops,
 
     // Relay
     CRITICAL_BLOCK(cs_vNodes)
-        foreach(CNode* pnode, vNodes)
+        BOOST_FOREACH(CNode* pnode, vNodes)
             if (pnode != pfrom && (nHops < PUBLISH_HOPS || pnode->IsSubscribed(nChannel)))
                 pnode->PushMessage("publish", nChannel, nHops, obj);
 }
@@ -1036,7 +1047,7 @@ void AdvertStopPublish(CNode* pfrom, unsigned int nChannel, unsigned int nHops, 
     uint256 hash = obj.GetHash();
 
     CRITICAL_BLOCK(cs_vNodes)
-        foreach(CNode* pnode, vNodes)
+        BOOST_FOREACH(CNode* pnode, vNodes)
             if (pnode != pfrom && (nHops < PUBLISH_HOPS || pnode->IsSubscribed(nChannel)))
                 pnode->PushMessage("pub-cancel", nChannel, nHops, hash);
 
@@ -1053,3 +1064,5 @@ void AdvertRemoveSource(CNode* pfrom, unsigned int nChannel, unsigned int nHops,
     if (obj.setSources.empty())
         AdvertStopPublish(pfrom, nChannel, nHops, obj);
 }
+
+#endif
