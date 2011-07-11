@@ -20,6 +20,9 @@ bitcoin (0.3.24~dfsg-1) UNRELEASED; urgency=low
   * Stop stripping no longer included source-less binaries from upstream
     tarballs.
 
+  [ Jan Dittberner ]
+  * refresh debian/patches/1000_use_system_crypto++.patch
+
  -- Jonas Smedegaard <dr@jones.dk>  Mon, 11 Jul 2011 15:55:18 +0200
 
 bitcoin (0.3.21~dfsg-2) unstable; urgency=low
