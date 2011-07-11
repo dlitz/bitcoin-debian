@@ -3,10 +3,17 @@
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
 
 #include "headers.h"
+#include "db.h"
+#include "init.h"
+#include "strlcpy.h"
+#include <boost/filesystem/fstream.hpp>
+#include <boost/filesystem/convenience.hpp>
 #ifdef _MSC_VER
 #include <crtdbg.h>
 #endif
 
+using namespace std;
+using namespace boost;
 
 
 DEFINE_EVENT_TYPE(wxEVT_UITHREADCALL)
@@ -16,6 +23,13 @@ CMyTaskBarIcon* ptaskbaricon = NULL;
 bool fClosedToTray = false;
 wxLocale g_locale;
 
+#ifdef __WXMSW__
+double nScaleX = 1.0;
+double nScaleY = 1.0;
+#else
+static const double nScaleX = 1.0;
+static const double nScaleY = 1.0;
+#endif
 
 
 
@@ -196,7 +210,7 @@ int ThreadSafeMessageBox(const string& message, const string& caption, int style
 
 bool ThreadSafeAskFee(int64 nFeeRequired, const string& strCaption, wxWindow* parent)
 {
-    if (nFeeRequired < CENT || nFeeRequired <= nTransactionFee || fDaemon)
+    if (nFeeRequired < MIN_TX_FEE || nFeeRequired <= nTransactionFee || fDaemon)
         return true;
     string strMessage = strprintf(
         _("This transaction is over the size limit.  You can still send it for a fee of %s, "
@@ -226,7 +240,7 @@ void SetDefaultReceivingAddress(const string& strAddress)
             return;
         if (!mapPubKeys.count(hash160))
             return;
-        CWalletDB().WriteDefaultKey(mapPubKeys[hash160]);
+        pwalletMain->SetDefaultKey(mapPubKeys[hash160]);
         pframeMain->m_textCtrlAddress->SetValue(strAddress);
     }
 }
@@ -261,9 +275,10 @@ CMainFrame::CMainFrame(wxWindow* parent) : CMainFrameBase(parent)
     fOnSetFocusAddress = false;
     fRefresh = false;
     m_choiceFilter->SetSelection(0);
-    double dResize = 1.0;
+    double dResize = nScaleX;
 #ifdef __WXMSW__
     SetIcon(wxICON(bitcoin));
+    SetSize(dResize * GetSize().GetWidth(), nScaleY * GetSize().GetHeight());
 #else
     SetIcon(bitcoin80_xpm);
     SetBackgroundColour(m_toolBar->GetBackgroundColour());
@@ -275,7 +290,7 @@ CMainFrame::CMainFrame(wxWindow* parent) : CMainFrameBase(parent)
     dResize = 1.22;
     SetSize(dResize * GetSize().GetWidth(), 1.15 * GetSize().GetHeight());
 #endif
-    m_staticTextBalance->SetLabel(FormatMoney(GetBalance()) + "  ");
+    m_staticTextBalance->SetLabel(FormatMoney(pwalletMain->GetBalance()) + "  ");
     m_listCtrl->SetFocus();
     ptaskbaricon = new CMyTaskBarIcon();
 #ifdef __WXMAC_OSX__
@@ -294,7 +309,7 @@ CMainFrame::CMainFrame(wxWindow* parent) : CMainFrameBase(parent)
     dResize -= 0.01;
 #endif
     wxListCtrl* pplistCtrl[] = {m_listCtrlAll, m_listCtrlSentReceived, m_listCtrlSent, m_listCtrlReceived};
-    foreach(wxListCtrl* p, pplistCtrl)
+    BOOST_FOREACH(wxListCtrl* p, pplistCtrl)
     {
         p->InsertColumn(0, "",               wxLIST_FORMAT_LEFT,  dResize * 0);
         p->InsertColumn(1, "",               wxLIST_FORMAT_LEFT,  dResize * 0);
@@ -315,7 +330,7 @@ CMainFrame::CMainFrame(wxWindow* parent) : CMainFrameBase(parent)
 
     // Fill your address text box
     vector<unsigned char> vchPubKey;
-    if (CWalletDB("r").ReadDefaultKey(vchPubKey))
+    if (CWalletDB(pwalletMain->strWalletFile,"r").ReadDefaultKey(vchPubKey))
         m_textCtrlAddress->SetValue(PubKeyToAddress(vchPubKey));
 
     // Fill listctrl with wallet transactions
@@ -528,7 +543,7 @@ string SingleLine(const string& strIn)
 {
     string strOut;
     bool fOneSpace = false;
-    foreach(unsigned char c, strIn)
+    BOOST_FOREACH(unsigned char c, strIn)
     {
         if (isspace(c))
         {
@@ -609,8 +624,8 @@ bool CMainFrame::InsertTransaction(const CWalletTx& wtx, bool fNew, int nIndex)
             if (nCredit == 0)
             {
                 int64 nUnmatured = 0;
-                foreach(const CTxOut& txout, wtx.vout)
-                    nUnmatured += txout.GetCredit();
+                BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+                    nUnmatured += pwalletMain->GetCredit(txout);
                 if (wtx.IsInMainChain())
                 {
                     strDescription = strprintf(_("Generated (%s matures in %d more blocks)"), FormatMoney(nUnmatured).c_str(), wtx.GetBlocksToMaturity());
@@ -644,21 +659,21 @@ bool CMainFrame::InsertTransaction(const CWalletTx& wtx, bool fNew, int nIndex)
             // Received by Bitcoin Address
             if (!fShowReceived)
                 return false;
-            foreach(const CTxOut& txout, wtx.vout)
+            BOOST_FOREACH(const CTxOut& txout, wtx.vout)
             {
-                if (txout.IsMine())
+                if (pwalletMain->IsMine(txout))
                 {
                     vector<unsigned char> vchPubKey;
-                    if (ExtractPubKey(txout.scriptPubKey, true, vchPubKey))
+                    if (ExtractPubKey(txout.scriptPubKey, pwalletMain, vchPubKey))
                     {
-                        CRITICAL_BLOCK(cs_mapAddressBook)
+                        CRITICAL_BLOCK(pwalletMain->cs_mapAddressBook)
                         {
                             //strDescription += _("Received payment to ");
                             //strDescription += _("Received with address ");
                             strDescription += _("Received with: ");
                             string strAddress = PubKeyToAddress(vchPubKey);
-                            map<string, string>::iterator mi = mapAddressBook.find(strAddress);
-                            if (mi != mapAddressBook.end() && !(*mi).second.empty())
+                            map<string, string>::iterator mi = pwalletMain->mapAddressBook.find(strAddress);
+                            if (mi != pwalletMain->mapAddressBook.end() && !(*mi).second.empty())
                             {
                                 string strLabel = (*mi).second;
                                 strDescription += strAddress.substr(0,12) + "... ";
@@ -687,12 +702,12 @@ bool CMainFrame::InsertTransaction(const CWalletTx& wtx, bool fNew, int nIndex)
     else
     {
         bool fAllFromMe = true;
-        foreach(const CTxIn& txin, wtx.vin)
-            fAllFromMe = fAllFromMe && txin.IsMine();
+        BOOST_FOREACH(const CTxIn& txin, wtx.vin)
+            fAllFromMe = fAllFromMe && pwalletMain->IsMine(txin);
 
         bool fAllToMe = true;
-        foreach(const CTxOut& txout, wtx.vout)
-            fAllToMe = fAllToMe && txout.IsMine();
+        BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+            fAllToMe = fAllToMe && pwalletMain->IsMine(txout);
 
         if (fAllFromMe && fAllToMe)
         {
@@ -718,7 +733,7 @@ bool CMainFrame::InsertTransaction(const CWalletTx& wtx, bool fNew, int nIndex)
             for (int nOut = 0; nOut < wtx.vout.size(); nOut++)
             {
                 const CTxOut& txout = wtx.vout[nOut];
-                if (txout.IsMine())
+                if (pwalletMain->IsMine(txout))
                     continue;
 
                 string strAddress;
@@ -736,9 +751,9 @@ bool CMainFrame::InsertTransaction(const CWalletTx& wtx, bool fNew, int nIndex)
                 }
 
                 string strDescription = _("To: ");
-                CRITICAL_BLOCK(cs_mapAddressBook)
-                    if (mapAddressBook.count(strAddress) && !mapAddressBook[strAddress].empty())
-                        strDescription += mapAddressBook[strAddress] + " ";
+                CRITICAL_BLOCK(pwalletMain->cs_mapAddressBook)
+                    if (pwalletMain->mapAddressBook.count(strAddress) && !pwalletMain->mapAddressBook[strAddress].empty())
+                        strDescription += pwalletMain->mapAddressBook[strAddress] + " ";
                 strDescription += strAddress;
                 if (!mapValue["message"].empty())
                 {
@@ -776,10 +791,10 @@ bool CMainFrame::InsertTransaction(const CWalletTx& wtx, bool fNew, int nIndex)
             // Mixed debit transaction, can't break down payees
             //
             bool fAllMine = true;
-            foreach(const CTxOut& txout, wtx.vout)
-                fAllMine = fAllMine && txout.IsMine();
-            foreach(const CTxIn& txin, wtx.vin)
-                fAllMine = fAllMine && txin.IsMine();
+            BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+                fAllMine = fAllMine && pwalletMain->IsMine(txout);
+            BOOST_FOREACH(const CTxIn& txin, wtx.vin)
+                fAllMine = fAllMine && pwalletMain->IsMine(txin);
 
             InsertLine(fNew, nIndex, hash, strSort, colour,
                        strStatus,
@@ -806,16 +821,16 @@ void CMainFrame::OnIdle(wxIdleEvent& event)
         // Collect list of wallet transactions and sort newest first
         bool fEntered = false;
         vector<pair<unsigned int, uint256> > vSorted;
-        TRY_CRITICAL_BLOCK(cs_mapWallet)
+        TRY_CRITICAL_BLOCK(pwalletMain->cs_mapWallet)
         {
             printf("RefreshListCtrl starting\n");
             fEntered = true;
             fRefreshListCtrl = false;
-            vWalletUpdated.clear();
+            pwalletMain->vWalletUpdated.clear();
 
             // Do the newest transactions first
-            vSorted.reserve(mapWallet.size());
-            for (map<uint256, CWalletTx>::iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+            vSorted.reserve(pwalletMain->mapWallet.size());
+            for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
             {
                 const CWalletTx& wtx = (*it).second;
                 unsigned int nTime = UINT_MAX - wtx.GetTxTime();
@@ -834,12 +849,12 @@ void CMainFrame::OnIdle(wxIdleEvent& event)
             if (fShutdown)
                 return;
             bool fEntered = false;
-            TRY_CRITICAL_BLOCK(cs_mapWallet)
+            TRY_CRITICAL_BLOCK(pwalletMain->cs_mapWallet)
             {
                 fEntered = true;
                 uint256& hash = vSorted[i++].second;
-                map<uint256, CWalletTx>::iterator mi = mapWallet.find(hash);
-                if (mi != mapWallet.end())
+                map<uint256, CWalletTx>::iterator mi = pwalletMain->mapWallet.find(hash);
+                if (mi != pwalletMain->mapWallet.end())
                     InsertTransaction((*mi).second, true);
             }
             if (!fEntered || i == 100 || i % 500 == 0)
@@ -857,10 +872,10 @@ void CMainFrame::OnIdle(wxIdleEvent& event)
         static int64 nLastTime;
         if (GetTime() > nLastTime + 30)
         {
-            TRY_CRITICAL_BLOCK(cs_mapWallet)
+            TRY_CRITICAL_BLOCK(pwalletMain->cs_mapWallet)
             {
                 nLastTime = GetTime();
-                for (map<uint256, CWalletTx>::iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+                for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
                 {
                     CWalletTx& wtx = (*it).second;
                     if (wtx.nTimeDisplayed && wtx.nTimeDisplayed != wtx.GetTxTime())
@@ -881,7 +896,7 @@ void CMainFrame::RefreshStatusColumn()
     if (nTop == nLastTop && pindexLastBest == pindexBest)
         return;
 
-    TRY_CRITICAL_BLOCK(cs_mapWallet)
+    TRY_CRITICAL_BLOCK(pwalletMain->cs_mapWallet)
     {
         int nStart = nTop;
         int nEnd = min(nStart + 100, m_listCtrl->GetItemCount());
@@ -901,8 +916,8 @@ void CMainFrame::RefreshStatusColumn()
         for (int nIndex = nStart; nIndex < min(nEnd, m_listCtrl->GetItemCount()); nIndex++)
         {
             uint256 hash((string)GetItemText(m_listCtrl, nIndex, 1));
-            map<uint256, CWalletTx>::iterator mi = mapWallet.find(hash);
-            if (mi == mapWallet.end())
+            map<uint256, CWalletTx>::iterator mi = pwalletMain->mapWallet.find(hash);
+            if (mi == pwalletMain->mapWallet.end())
             {
                 printf("CMainFrame::RefreshStatusColumn() : tx not found in mapWallet\n");
                 continue;
@@ -999,41 +1014,41 @@ void CMainFrame::OnPaintListCtrl(wxPaintEvent& event)
         nLastRepaintTime = GetTimeMillis();
 
         // Update listctrl contents
-        if (!vWalletUpdated.empty())
+        if (!pwalletMain->vWalletUpdated.empty())
         {
-            TRY_CRITICAL_BLOCK(cs_mapWallet)
+            TRY_CRITICAL_BLOCK(pwalletMain->cs_mapWallet)
             {
                 string strTop;
                 if (m_listCtrl->GetItemCount())
                     strTop = (string)m_listCtrl->GetItemText(0);
-                foreach(uint256 hash, vWalletUpdated)
+                BOOST_FOREACH(uint256 hash, pwalletMain->vWalletUpdated)
                 {
-                    map<uint256, CWalletTx>::iterator mi = mapWallet.find(hash);
-                    if (mi != mapWallet.end())
+                    map<uint256, CWalletTx>::iterator mi = pwalletMain->mapWallet.find(hash);
+                    if (mi != pwalletMain->mapWallet.end())
                         InsertTransaction((*mi).second, false);
                 }
-                vWalletUpdated.clear();
+                pwalletMain->vWalletUpdated.clear();
                 if (m_listCtrl->GetItemCount() && strTop != (string)m_listCtrl->GetItemText(0))
                     m_listCtrl->ScrollList(0, INT_MIN/2);
             }
         }
 
         // Balance total
-        TRY_CRITICAL_BLOCK(cs_mapWallet)
+        TRY_CRITICAL_BLOCK(pwalletMain->cs_mapWallet)
         {
             fPaintedBalance = true;
-            m_staticTextBalance->SetLabel(FormatMoney(GetBalance()) + "  ");
+            m_staticTextBalance->SetLabel(FormatMoney(pwalletMain->GetBalance()) + "  ");
 
             // Count hidden and multi-line transactions
             nTransactionCount = 0;
-            for (map<uint256, CWalletTx>::iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+            for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
             {
                 CWalletTx& wtx = (*it).second;
                 nTransactionCount += wtx.nLinesDisplayed;
             }
         }
     }
-    if (!vWalletUpdated.empty() || !fPaintedBalance)
+    if (!pwalletMain->vWalletUpdated.empty() || !fPaintedBalance)
         nNeedRepaint++;
 
     // Update status column of visible items only
@@ -1059,7 +1074,7 @@ void CMainFrame::OnPaintListCtrl(wxPaintEvent& event)
     m_statusBar->SetStatusText(strStatus, 2);
 
     // Update receiving address
-    string strDefaultAddress = PubKeyToAddress(vchDefaultKey);
+    string strDefaultAddress = PubKeyToAddress(pwalletMain->vchDefaultKey);
     if (m_textCtrlAddress->GetValue() != strDefaultAddress)
         m_textCtrlAddress->SetValue(strDefaultAddress);
 }
@@ -1092,12 +1107,6 @@ void CMainFrame::OnMenuFileExit(wxCommandEvent& event)
 {
     // File->Exit
     Close(true);
-}
-
-void CMainFrame::OnMenuOptionsGenerate(wxCommandEvent& event)
-{
-    // Options->Generate Coins
-    GenerateBitcoins(event.IsChecked());
 }
 
 void CMainFrame::OnUpdateUIOptionsGenerate(wxUpdateUIEvent& event)
@@ -1174,10 +1183,11 @@ void CMainFrame::OnButtonNew(wxCommandEvent& event)
     string strName = dialog.GetValue();
 
     // Generate new key
-    string strAddress = PubKeyToAddress(GetKeyFromKeyPool());
+    string strAddress = PubKeyToAddress(pwalletMain->GetKeyFromKeyPool());
 
     // Save
-    SetAddressBookName(strAddress, strName);
+    CRITICAL_BLOCK(pwalletMain->cs_mapAddressBook)
+        pwalletMain->SetAddressBookName(strAddress, strName);
     SetDefaultReceivingAddress(strAddress);
 }
 
@@ -1195,10 +1205,10 @@ void CMainFrame::OnListItemActivated(wxListEvent& event)
 {
     uint256 hash((string)GetItemText(m_listCtrl, event.GetIndex(), 1));
     CWalletTx wtx;
-    CRITICAL_BLOCK(cs_mapWallet)
+    CRITICAL_BLOCK(pwalletMain->cs_mapWallet)
     {
-        map<uint256, CWalletTx>::iterator mi = mapWallet.find(hash);
-        if (mi == mapWallet.end())
+        map<uint256, CWalletTx>::iterator mi = pwalletMain->mapWallet.find(hash);
+        if (mi == pwalletMain->mapWallet.end())
         {
             printf("CMainFrame::OnListItemActivated() : tx not found in mapWallet\n");
             return;
@@ -1223,7 +1233,10 @@ void CMainFrame::OnListItemActivated(wxListEvent& event)
 
 CTxDetailsDialog::CTxDetailsDialog(wxWindow* parent, CWalletTx wtx) : CTxDetailsDialogBase(parent)
 {
-    CRITICAL_BLOCK(cs_mapAddressBook)
+#ifdef __WXMSW__
+    SetSize(nScaleX * GetSize().GetWidth(), nScaleY * GetSize().GetHeight());
+#endif
+    CRITICAL_BLOCK(pwalletMain->cs_mapAddressBook)
     {
         string strHTML;
         strHTML.reserve(4000);
@@ -1271,21 +1284,21 @@ CTxDetailsDialog::CTxDetailsDialog(wxWindow* parent, CWalletTx wtx) : CTxDetails
             if (nNet > 0)
             {
                 // Credit
-                foreach(const CTxOut& txout, wtx.vout)
+                BOOST_FOREACH(const CTxOut& txout, wtx.vout)
                 {
-                    if (txout.IsMine())
+                    if (pwalletMain->IsMine(txout))
                     {
                         vector<unsigned char> vchPubKey;
-                        if (ExtractPubKey(txout.scriptPubKey, true, vchPubKey))
+                        if (ExtractPubKey(txout.scriptPubKey, pwalletMain, vchPubKey))
                         {
                             string strAddress = PubKeyToAddress(vchPubKey);
-                            if (mapAddressBook.count(strAddress))
+                            if (pwalletMain->mapAddressBook.count(strAddress))
                             {
                                 strHTML += string() + _("<b>From:</b> ") + _("unknown") + "<br>";
                                 strHTML += _("<b>To:</b> ");
                                 strHTML += HtmlEscape(strAddress);
-                                if (!mapAddressBook[strAddress].empty())
-                                    strHTML += _(" (yours, label: ") + mapAddressBook[strAddress] + ")";
+                                if (!pwalletMain->mapAddressBook[strAddress].empty())
+                                    strHTML += _(" (yours, label: ") + pwalletMain->mapAddressBook[strAddress] + ")";
                                 else
                                     strHTML += _(" (yours)");
                                 strHTML += "<br>";
@@ -1307,8 +1320,8 @@ CTxDetailsDialog::CTxDetailsDialog(wxWindow* parent, CWalletTx wtx) : CTxDetails
             // Online transaction
             strAddress = wtx.mapValue["to"];
             strHTML += _("<b>To:</b> ");
-            if (mapAddressBook.count(strAddress) && !mapAddressBook[strAddress].empty())
-                strHTML += mapAddressBook[strAddress] + " ";
+            if (pwalletMain->mapAddressBook.count(strAddress) && !pwalletMain->mapAddressBook[strAddress].empty())
+                strHTML += pwalletMain->mapAddressBook[strAddress] + " ";
             strHTML += HtmlEscape(strAddress) + "<br>";
         }
 
@@ -1322,8 +1335,8 @@ CTxDetailsDialog::CTxDetailsDialog(wxWindow* parent, CWalletTx wtx) : CTxDetails
             // Coinbase
             //
             int64 nUnmatured = 0;
-            foreach(const CTxOut& txout, wtx.vout)
-                nUnmatured += txout.GetCredit();
+            BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+                nUnmatured += pwalletMain->GetCredit(txout);
             strHTML += _("<b>Credit:</b> ");
             if (wtx.IsInMainChain())
                 strHTML += strprintf(_("(%s matures in %d more blocks)"), FormatMoney(nUnmatured).c_str(), wtx.GetBlocksToMaturity());
@@ -1341,21 +1354,21 @@ CTxDetailsDialog::CTxDetailsDialog(wxWindow* parent, CWalletTx wtx) : CTxDetails
         else
         {
             bool fAllFromMe = true;
-            foreach(const CTxIn& txin, wtx.vin)
-                fAllFromMe = fAllFromMe && txin.IsMine();
+            BOOST_FOREACH(const CTxIn& txin, wtx.vin)
+                fAllFromMe = fAllFromMe && pwalletMain->IsMine(txin);
 
             bool fAllToMe = true;
-            foreach(const CTxOut& txout, wtx.vout)
-                fAllToMe = fAllToMe && txout.IsMine();
+            BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+                fAllToMe = fAllToMe && pwalletMain->IsMine(txout);
 
             if (fAllFromMe)
             {
                 //
                 // Debit
                 //
-                foreach(const CTxOut& txout, wtx.vout)
+                BOOST_FOREACH(const CTxOut& txout, wtx.vout)
                 {
-                    if (txout.IsMine())
+                    if (pwalletMain->IsMine(txout))
                         continue;
 
                     if (wtx.mapValue["to"].empty())
@@ -1366,8 +1379,8 @@ CTxDetailsDialog::CTxDetailsDialog(wxWindow* parent, CWalletTx wtx) : CTxDetails
                         {
                             string strAddress = Hash160ToAddress(hash160);
                             strHTML += _("<b>To:</b> ");
-                            if (mapAddressBook.count(strAddress) && !mapAddressBook[strAddress].empty())
-                                strHTML += mapAddressBook[strAddress] + " ";
+                            if (pwalletMain->mapAddressBook.count(strAddress) && !pwalletMain->mapAddressBook[strAddress].empty())
+                                strHTML += pwalletMain->mapAddressBook[strAddress] + " ";
                             strHTML += strAddress;
                             strHTML += "<br>";
                         }
@@ -1394,12 +1407,12 @@ CTxDetailsDialog::CTxDetailsDialog(wxWindow* parent, CWalletTx wtx) : CTxDetails
                 //
                 // Mixed debit transaction
                 //
-                foreach(const CTxIn& txin, wtx.vin)
-                    if (txin.IsMine())
-                        strHTML += _("<b>Debit:</b> ") + FormatMoney(-txin.GetDebit()) + "<br>";
-                foreach(const CTxOut& txout, wtx.vout)
-                    if (txout.IsMine())
-                        strHTML += _("<b>Credit:</b> ") + FormatMoney(txout.GetCredit()) + "<br>";
+                BOOST_FOREACH(const CTxIn& txin, wtx.vin)
+                    if (pwalletMain->IsMine(txin))
+                        strHTML += _("<b>Debit:</b> ") + FormatMoney(-pwalletMain->GetDebit(txin)) + "<br>";
+                BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+                    if (pwalletMain->IsMine(txout))
+                        strHTML += _("<b>Credit:</b> ") + FormatMoney(pwalletMain->GetCredit(txout)) + "<br>";
             }
         }
 
@@ -1424,31 +1437,31 @@ CTxDetailsDialog::CTxDetailsDialog(wxWindow* parent, CWalletTx wtx) : CTxDetails
         if (fDebug)
         {
             strHTML += "<hr><br>debug print<br><br>";
-            foreach(const CTxIn& txin, wtx.vin)
-                if (txin.IsMine())
-                    strHTML += "<b>Debit:</b> " + FormatMoney(-txin.GetDebit()) + "<br>";
-            foreach(const CTxOut& txout, wtx.vout)
-                if (txout.IsMine())
-                    strHTML += "<b>Credit:</b> " + FormatMoney(txout.GetCredit()) + "<br>";
+            BOOST_FOREACH(const CTxIn& txin, wtx.vin)
+                if (pwalletMain->IsMine(txin))
+                    strHTML += "<b>Debit:</b> " + FormatMoney(-pwalletMain->GetDebit(txin)) + "<br>";
+            BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+                if (pwalletMain->IsMine(txout))
+                    strHTML += "<b>Credit:</b> " + FormatMoney(pwalletMain->GetCredit(txout)) + "<br>";
 
             strHTML += "<br><b>Transaction:</b><br>";
             strHTML += HtmlEscape(wtx.ToString(), true);
 
             strHTML += "<br><b>Inputs:</b><br>";
-            CRITICAL_BLOCK(cs_mapWallet)
+            CRITICAL_BLOCK(pwalletMain->cs_mapWallet)
             {
-                foreach(const CTxIn& txin, wtx.vin)
+                BOOST_FOREACH(const CTxIn& txin, wtx.vin)
                 {
                     COutPoint prevout = txin.prevout;
-                    map<uint256, CWalletTx>::iterator mi = mapWallet.find(prevout.hash);
-                    if (mi != mapWallet.end())
+                    map<uint256, CWalletTx>::iterator mi = pwalletMain->mapWallet.find(prevout.hash);
+                    if (mi != pwalletMain->mapWallet.end())
                     {
                         const CWalletTx& prev = (*mi).second;
                         if (prevout.n < prev.vout.size())
                         {
                             strHTML += HtmlEscape(prev.ToString(), true);
                             strHTML += " &nbsp;&nbsp; " + FormatTxStatus(prev) + ", ";
-                            strHTML = strHTML + "IsMine=" + (prev.vout[prevout.n].IsMine() ? "true" : "false") + "<br>";
+                            strHTML = strHTML + "IsMine=" + (pwalletMain->IsMine(prev.vout[prevout.n]) ? "true" : "false") + "<br>";
                         }
                     }
                 }
@@ -1637,6 +1650,8 @@ COptionsDialog::COptionsDialog(wxWindow* parent) : COptionsDialogBase(parent)
     SelectPage(0);
 #ifndef __WXMSW__
     SetSize(1.0 * GetSize().GetWidth(), 1.2 * GetSize().GetHeight());
+#else
+    SetSize(nScaleX * GetSize().GetWidth(), nScaleY * GetSize().GetHeight());
 #endif
 #if defined(__WXGTK__) || defined(__WXMAC_OSX__)
     m_checkBoxStartOnSystemStartup->SetLabel(_("&Start Bitcoin on window system startup"));
@@ -1655,13 +1670,6 @@ COptionsDialog::COptionsDialog(wxWindow* parent) : COptionsDialogBase(parent)
 
     // Init values
     m_textCtrlTransactionFee->SetValue(FormatMoney(nTransactionFee));
-    m_checkBoxLimitProcessors->SetValue(fLimitProcessors);
-    m_spinCtrlLimitProcessors->Enable(fLimitProcessors);
-    m_spinCtrlLimitProcessors->SetValue(nLimitProcessors);
-    int nProcessors = wxThread::GetCPUCount();
-    if (nProcessors < 1)
-        nProcessors = 999;
-    m_spinCtrlLimitProcessors->SetRange(1, nProcessors);
     m_checkBoxStartOnSystemStartup->SetValue(fTmpStartOnSystemStartup = GetStartOnSystemStartup());
     m_checkBoxMinimizeToTray->SetValue(fMinimizeToTray);
     m_checkBoxMinimizeOnClose->SetValue(fMinimizeOnClose);
@@ -1700,11 +1708,6 @@ void COptionsDialog::OnKillFocusTransactionFee(wxFocusEvent& event)
     int64 nTmp = nTransactionFee;
     ParseMoney(m_textCtrlTransactionFee->GetValue(), nTmp);
     m_textCtrlTransactionFee->SetValue(FormatMoney(nTmp));
-}
-
-void COptionsDialog::OnCheckBoxLimitProcessors(wxCommandEvent& event)
-{
-    m_spinCtrlLimitProcessors->Enable(event.IsChecked());
 }
 
 void COptionsDialog::OnCheckBoxUseProxy(wxCommandEvent& event)
@@ -1749,25 +1752,11 @@ void COptionsDialog::OnButtonCancel(wxCommandEvent& event)
 
 void COptionsDialog::OnButtonApply(wxCommandEvent& event)
 {
-    CWalletDB walletdb;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
 
     int64 nPrevTransactionFee = nTransactionFee;
     if (ParseMoney(m_textCtrlTransactionFee->GetValue(), nTransactionFee) && nTransactionFee != nPrevTransactionFee)
         walletdb.WriteSetting("nTransactionFee", nTransactionFee);
-
-    int nPrevMaxProc = (fLimitProcessors ? nLimitProcessors : INT_MAX);
-    if (fLimitProcessors != m_checkBoxLimitProcessors->GetValue())
-    {
-        fLimitProcessors = m_checkBoxLimitProcessors->GetValue();
-        walletdb.WriteSetting("fLimitProcessors", fLimitProcessors);
-    }
-    if (nLimitProcessors != m_spinCtrlLimitProcessors->GetValue())
-    {
-        nLimitProcessors = m_spinCtrlLimitProcessors->GetValue();
-        walletdb.WriteSetting("nLimitProcessors", nLimitProcessors);
-    }
-    if (fGenerateBitcoins && (fLimitProcessors ? nLimitProcessors : INT_MAX) > nPrevMaxProc)
-        GenerateBitcoins(fGenerateBitcoins);
 
     if (fTmpStartOnSystemStartup != m_checkBoxStartOnSystemStartup->GetValue())
     {
@@ -1833,6 +1822,8 @@ CAboutDialog::CAboutDialog(wxWindow* parent) : CAboutDialogBase(parent)
         fontTmp.SetPointSize(8);
     m_staticTextMain->SetFont(fontTmp);
     SetSize(GetSize().GetWidth() + 44, GetSize().GetHeight() + 10);
+#else
+    SetSize(nScaleX * GetSize().GetWidth(), nScaleY * GetSize().GetHeight());
 #endif
 }
 
@@ -1859,6 +1850,7 @@ CSendDialog::CSendDialog(wxWindow* parent, const wxString& strAddress) : CSendDi
     m_bitmapCheckMark->Show(false);
     fEnabledPrev = true;
     m_textCtrlAddress->SetFocus();
+    
     //// todo: should add a display of your balance for convenience
 #ifndef __WXMSW__
     wxFont fontTmp = m_staticTextInstructions->GetFont();
@@ -1866,12 +1858,21 @@ CSendDialog::CSendDialog(wxWindow* parent, const wxString& strAddress) : CSendDi
         fontTmp.SetPointSize(9);
     m_staticTextInstructions->SetFont(fontTmp);
     SetSize(725, 180);
+#else
+    SetSize(nScaleX * GetSize().GetWidth(), nScaleY * GetSize().GetHeight());
 #endif
-
+    
     // Set Icon
-    wxIcon iconSend;
-    iconSend.CopyFromBitmap(wxBitmap(send16noshadow_xpm));
-    SetIcon(iconSend);
+    if (nScaleX == 1.0 && nScaleY == 1.0) // We don't have icons of the proper size otherwise
+    {
+        wxIcon iconSend;
+        iconSend.CopyFromBitmap(wxBitmap(send16noshadow_xpm));
+        SetIcon(iconSend);
+    }
+#ifdef __WXMSW__
+    else
+        SetIcon(wxICON(bitcoin));
+#endif
 
     // Fixup the tab order
     m_buttonPaste->MoveAfterInTabOrder(m_buttonCancel);
@@ -1928,12 +1929,12 @@ void CSendDialog::OnButtonSend(wxCommandEvent& event)
             wxMessageBox(_("Error in amount  "), _("Send Coins"));
             return;
         }
-        if (nValue > GetBalance())
+        if (nValue > pwalletMain->GetBalance())
         {
             wxMessageBox(_("Amount exceeds your balance  "), _("Send Coins"));
             return;
         }
-        if (nValue + nTransactionFee > GetBalance())
+        if (nValue + nTransactionFee > pwalletMain->GetBalance())
         {
             wxMessageBox(string(_("Total exceeds your balance when the ")) + FormatMoney(nTransactionFee) + _(" transaction fee is included  "), _("Send Coins"));
             return;
@@ -1951,7 +1952,7 @@ void CSendDialog::OnButtonSend(wxCommandEvent& event)
                 CScript scriptPubKey;
                 scriptPubKey << OP_DUP << OP_HASH160 << hash160 << OP_EQUALVERIFY << OP_CHECKSIG;
 
-                string strError = SendMoney(scriptPubKey, nValue, wtx, true);
+                string strError = pwalletMain->SendMoney(scriptPubKey, nValue, wtx, true);
                 if (strError == "")
                     wxMessageBox(_("Payment sent  "), _("Sending..."));
                 else if (strError == "ABORTED")
@@ -1960,6 +1961,7 @@ void CSendDialog::OnButtonSend(wxCommandEvent& event)
                 {
                     wxMessageBox(strError + "  ", _("Sending..."));
                     EndModal(false);
+                    return;
                 }
 	    }
         }
@@ -1982,9 +1984,9 @@ void CSendDialog::OnButtonSend(wxCommandEvent& event)
                 return;
         }
 
-        CRITICAL_BLOCK(cs_mapAddressBook)
-            if (!mapAddressBook.count(strAddress))
-                SetAddressBookName(strAddress, "");
+        CRITICAL_BLOCK(pwalletMain->cs_mapAddressBook)
+            if (!pwalletMain->mapAddressBook.count(strAddress))
+                pwalletMain->SetAddressBookName(strAddress, "");
 
         EndModal(true);
     }
@@ -2020,6 +2022,8 @@ CSendingDialog::CSendingDialog(wxWindow* parent, const CAddress& addrIn, int64 n
     fWorkDone = false;
 #ifndef __WXMSW__
     SetSize(1.2 * GetSize().GetWidth(), 1.08 * GetSize().GetHeight());
+#else
+    SetSize(nScaleX * GetSize().GetWidth(), nScaleY * GetSize().GetHeight());
 #endif
 
     SetTitle(strprintf(_("Sending %s to %s"), FormatMoney(nPrice).c_str(), wtx.mapValue["to"].c_str()));
@@ -2166,7 +2170,7 @@ void SendingDialogStartTransfer(void* parg)
 void CSendingDialog::StartTransfer()
 {
     // Make sure we have enough money
-    if (nPrice + nTransactionFee > GetBalance())
+    if (nPrice + nTransactionFee > pwalletMain->GetBalance())
     {
         Error(_("Insufficient funds"));
         return;
@@ -2237,16 +2241,16 @@ void CSendingDialog::OnReply2(CDataStream& vRecv)
         // Pay
         if (!Status(_("Creating transaction...")))
             return;
-        if (nPrice + nTransactionFee > GetBalance())
+        if (nPrice + nTransactionFee > pwalletMain->GetBalance())
         {
             Error(_("Insufficient funds"));
             return;
         }
-        CReserveKey reservekey;
+        CReserveKey reservekey(pwalletMain);
         int64 nFeeRequired;
-        if (!CreateTransaction(scriptPubKey, nPrice, wtx, reservekey, nFeeRequired))
+        if (!pwalletMain->CreateTransaction(scriptPubKey, nPrice, wtx, reservekey, nFeeRequired))
         {
-            if (nPrice + nFeeRequired > GetBalance())
+            if (nPrice + nFeeRequired > pwalletMain->GetBalance())
                 Error(strprintf(_("This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds"), FormatMoney(nFeeRequired).c_str()));
             else
                 Error(_("Transaction creation failed"));
@@ -2284,7 +2288,7 @@ void CSendingDialog::OnReply2(CDataStream& vRecv)
             return;
 
         // Commit
-        if (!CommitTransaction(wtx, reservekey))
+        if (!pwalletMain->CommitTransaction(wtx, reservekey))
         {
             Error(_("The transaction was rejected.  This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here."));
             return;
@@ -2343,6 +2347,10 @@ void CSendingDialog::OnReply3(CDataStream& vRecv)
 
 CAddressBookDialog::CAddressBookDialog(wxWindow* parent, const wxString& strInitSelected, int nPageIn, bool fDuringSendIn) : CAddressBookDialogBase(parent)
 {
+#ifdef __WXMSW__
+    SetSize(nScaleX * GetSize().GetWidth(), nScaleY * GetSize().GetHeight());
+#endif
+
     // Set initially selected page
     wxNotebookEvent event;
     event.SetSelection(nPageIn);
@@ -2354,9 +2362,16 @@ CAddressBookDialog::CAddressBookDialog(wxWindow* parent, const wxString& strInit
         m_buttonCancel->Show(false);
 
     // Set Icon
-    wxIcon iconAddressBook;
-    iconAddressBook.CopyFromBitmap(wxBitmap(addressbook16_xpm));
-    SetIcon(iconAddressBook);
+    if (nScaleX == 1.0 && nScaleY == 1.0) // We don't have icons of the proper size otherwise
+    {
+        wxIcon iconAddressBook;
+        iconAddressBook.CopyFromBitmap(wxBitmap(addressbook16_xpm));
+        SetIcon(iconAddressBook);
+    }
+#ifdef __WXMSW__
+    else
+        SetIcon(wxICON(bitcoin));
+#endif
 
     // Init column headers
     m_listCtrlSending->InsertColumn(0, _("Name"), wxLIST_FORMAT_LEFT, 200);
@@ -2367,11 +2382,11 @@ CAddressBookDialog::CAddressBookDialog(wxWindow* parent, const wxString& strInit
     m_listCtrlReceiving->SetFocus();
 
     // Fill listctrl with address book data
-    CRITICAL_BLOCK(cs_mapKeys)
-    CRITICAL_BLOCK(cs_mapAddressBook)
+    CRITICAL_BLOCK(pwalletMain->cs_mapKeys)
+    CRITICAL_BLOCK(pwalletMain->cs_mapAddressBook)
     {
         string strDefaultReceiving = (string)pframeMain->m_textCtrlAddress->GetValue();
-        foreach(const PAIRTYPE(string, string)& item, mapAddressBook)
+        BOOST_FOREACH(const PAIRTYPE(string, string)& item, pwalletMain->mapAddressBook)
         {
             string strAddress = item.first;
             string strName = item.second;
@@ -2430,7 +2445,8 @@ void CAddressBookDialog::OnListEndLabelEdit(wxListEvent& event)
     if (event.IsEditCancelled())
         return;
     string strAddress = (string)GetItemText(m_listCtrl, event.GetIndex(), 1);
-    SetAddressBookName(strAddress, string(event.GetText()));
+    CRITICAL_BLOCK(pwalletMain->cs_mapAddressBook)
+        pwalletMain->SetAddressBookName(strAddress, string(event.GetText()));
     pframeMain->RefreshListCtrl();
 }
 
@@ -2465,7 +2481,8 @@ void CAddressBookDialog::OnButtonDelete(wxCommandEvent& event)
         if (m_listCtrl->GetItemState(nIndex, wxLIST_STATE_SELECTED))
         {
             string strAddress = (string)GetItemText(m_listCtrl, nIndex, 1);
-            CWalletDB().EraseName(strAddress);
+            CRITICAL_BLOCK(pwalletMain->cs_mapAddressBook)
+                pwalletMain->DelAddressBookName(strAddress);
             m_listCtrl->DeleteItem(nIndex);
         }
     }
@@ -2524,9 +2541,12 @@ void CAddressBookDialog::OnButtonEdit(wxCommandEvent& event)
     }
 
     // Write back
-    if (strAddress != strAddressOrg)
-        CWalletDB().EraseName(strAddressOrg);
-    SetAddressBookName(strAddress, strName);
+    CRITICAL_BLOCK(pwalletMain->cs_mapAddressBook)
+    {
+        if (strAddress != strAddressOrg)
+            pwalletMain->DelAddressBookName(strAddressOrg);
+        pwalletMain->SetAddressBookName(strAddress, strName);
+    }
     m_listCtrl->SetItem(nIndex, 1, strAddress);
     m_listCtrl->SetItemText(nIndex, strName);
     pframeMain->RefreshListCtrl();
@@ -2562,11 +2582,12 @@ void CAddressBookDialog::OnButtonNew(wxCommandEvent& event)
         strName = dialog.GetValue();
 
         // Generate new key
-        strAddress = PubKeyToAddress(GetKeyFromKeyPool());
+        strAddress = PubKeyToAddress(pwalletMain->GetKeyFromKeyPool());
     }
 
     // Add to list and select it
-    SetAddressBookName(strAddress, strName);
+    CRITICAL_BLOCK(pwalletMain->cs_mapAddressBook)
+        pwalletMain->SetAddressBookName(strAddress, strName);
     int nIndex = InsertLine(m_listCtrl, strName, strAddress);
     SetSelection(m_listCtrl, nIndex);
     m_listCtrl->SetFocus();
@@ -2605,6 +2626,7 @@ void CAddressBookDialog::OnClose(wxCloseEvent& event)
 enum
 {
     ID_TASKBAR_RESTORE = 10001,
+    ID_TASKBAR_SEND,
     ID_TASKBAR_OPTIONS,
     ID_TASKBAR_GENERATE,
     ID_TASKBAR_EXIT,
@@ -2613,8 +2635,8 @@ enum
 BEGIN_EVENT_TABLE(CMyTaskBarIcon, wxTaskBarIcon)
     EVT_TASKBAR_LEFT_DCLICK(CMyTaskBarIcon::OnLeftButtonDClick)
     EVT_MENU(ID_TASKBAR_RESTORE, CMyTaskBarIcon::OnMenuRestore)
+    EVT_MENU(ID_TASKBAR_SEND, CMyTaskBarIcon::OnMenuSend)
     EVT_MENU(ID_TASKBAR_OPTIONS, CMyTaskBarIcon::OnMenuOptions)
-    EVT_MENU(ID_TASKBAR_GENERATE, CMyTaskBarIcon::OnMenuGenerate)
     EVT_UPDATE_UI(ID_TASKBAR_GENERATE, CMyTaskBarIcon::OnUpdateUIGenerate)
     EVT_MENU(ID_TASKBAR_EXIT, CMyTaskBarIcon::OnMenuExit)
 END_EVENT_TABLE()
@@ -2665,6 +2687,13 @@ void CMyTaskBarIcon::OnMenuRestore(wxCommandEvent& event)
     Restore();
 }
 
+void CMyTaskBarIcon::OnMenuSend(wxCommandEvent& event)
+{
+    // Taskbar: Send
+    CSendDialog dialog(pframeMain);
+    dialog.ShowModal();
+}
+
 void CMyTaskBarIcon::OnMenuOptions(wxCommandEvent& event)
 {
     // Since it's modal, get the main window to do it
@@ -2679,11 +2708,6 @@ void CMyTaskBarIcon::Restore()
     pframeMain->GetEventHandler()->AddPendingEvent(event);
     pframeMain->Iconize(false);
     pframeMain->Raise();
-}
-
-void CMyTaskBarIcon::OnMenuGenerate(wxCommandEvent& event)
-{
-    GenerateBitcoins(event.IsChecked());
 }
 
 void CMyTaskBarIcon::OnUpdateUIGenerate(wxUpdateUIEvent& event)
@@ -2706,8 +2730,8 @@ wxMenu* CMyTaskBarIcon::CreatePopupMenu()
 {
     wxMenu* pmenu = new wxMenu;
     pmenu->Append(ID_TASKBAR_RESTORE, _("&Open Bitcoin"));
+    pmenu->Append(ID_TASKBAR_SEND, _("&Send Bitcoins"));
     pmenu->Append(ID_TASKBAR_OPTIONS, _("O&ptions..."));
-    pmenu->AppendCheckItem(ID_TASKBAR_GENERATE, _("&Generate Coins"))->Check(fGenerateBitcoins);
 #ifndef __WXMAC_OSX__ // Mac has built-in quit menu
     pmenu->AppendSeparator();
     pmenu->Append(ID_TASKBAR_EXIT, _("E&xit"));
@@ -2839,9 +2863,6 @@ bool CMyApp::OnInit()
     extern int g_isPainting;
     g_isPainting = 10000;
 #endif
-#ifdef GUI
-    wxImage::AddHandler(new wxPNGHandler);
-#endif
 #if defined(__WXMSW__ ) || defined(__WXMAC_OSX__)
     SetAppName("Bitcoin");
 #else
@@ -2871,6 +2892,16 @@ bool CMyApp::OnInit()
 #endif
     g_locale.AddCatalog("wxstd"); // wxWidgets standard translations, if any
     g_locale.AddCatalog("bitcoin");
+
+#ifdef __WXMSW__
+    HDC hdc = GetDC(NULL);
+    if (hdc)
+    {
+        nScaleX = GetDeviceCaps(hdc, LOGPIXELSX) / 96.0;
+        nScaleY = GetDeviceCaps(hdc, LOGPIXELSY) / 96.0;
+        ReleaseDC(NULL, hdc);
+    }
+#endif
 
     return AppInit(argc, argv);
 }
