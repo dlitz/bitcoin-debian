@@ -40,6 +40,10 @@ DEB_MAKE_MAKEFILE = makefile.unix
 # Avoid GUI until wxWidget 2.9 is in Debian
 DEB_MAKE_BUILD_TARGET = bitcoind
 
+DEB_MAKE_CHECK_TARGET = test_bitcoin
+build/bitcoind::
+	$(if $(filter nocheck,$(DEB_BUILD_OPTIONS)),,src/test_bitcoin)
+
 # Readd default flags
 CXXFLAGS += -D__WXGTK__ -DNOPCH -DUSE_SSL
 #CXXFLAGS += -Wno-invalid-offsetof -Wformat
@@ -62,7 +66,7 @@ boostdep = $(foreach dep,$1,libboost-$(dep)$(boostver)-dev (>> $(boostoldver)) |
 
 CDBS_BUILD_DEPENDS += , $(call boostdep,system), libdb++-dev | libdb4.6++-dev, libssl-dev, libcrypto++-dev, pkg-config, libglib2.0-dev, libminiupnpc-dev
 # TODO: Drop this when maybe system json is used some day
-CDBS_BUILD_DEPENDS += , $(call boostdep,filesystem program-options thread)
+CDBS_BUILD_DEPENDS += , $(call boostdep,filesystem program-options thread test)
 
 # FIXME: when available, enable this and install into -gui package
 #CDBS_BUILD_DEPENDS += , libwxgtk2.9-dev
