@@ -2,8 +2,6 @@ Format: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?rev=174
 Upstream-Name: Bitcoin
 Upstream-Contact: Satoshi Nakamoto <satoshin@gmx.com>
 Source: http://sourceforge.net/projects/bitcoin/files/
-Files-Excluded: src/cryptopp/*
-Comment: unneeded external project sources
 
 Files: *
 Copyright: 2009-2011, Bitcoin Developers
