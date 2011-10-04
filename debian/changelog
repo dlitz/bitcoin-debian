@@ -1,3 +1,31 @@
+bitcoin (0.4.0-1) unstable; urgency=low
+
+  * New upstream release.
+  * Stop repackaging source tarballs: No DFSG-violating stripping left.
+  * Update copyright file:
+    + Add Github URL to Source.
+  * Drop dpkg-source local-options hint: Declared options are default
+    since dpkg-source 1.16.1.
+    + Add irc URL to Upstream-Contact.
+    + Add comment on Bitcoin Developers to catch-all Files section.
+    + Add Files sections for newly readded src/cryptopp/* (new custom
+      BSD-like license), and newly added doc/build-osx.txt and
+      src/makefile.osx (Expat).
+  * Bump debhelper compatibility level to 7.
+  * Suppress binary icns and gpg files.
+  * Enable regression tests:
+    + Build-depend on libboost-test-dev.
+    + Extend patch 1003 to also dynamically link test binary.
+    + Build and invoke test binary unless tests are disabled.
+  * Tighten build-dependency on cdbs: Recent version needed to support
+    debhelper 7.
+  * Relax build-depend unversioned on debhelper: needed version
+    satisfied even in oldstable.
+  * Stop suppress optional build-dependencies: Satisfied in stable.
+    Build-depend on devscripts (enabling copyright-check).
+
+ -- Jonas Smedegaard <dr@jones.dk>  Wed, 05 Oct 2011 01:48:53 +0200
+
 bitcoin (0.3.24~dfsg-1) unstable; urgency=low
 
   * New upstream release.

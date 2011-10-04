@@ -3,9 +3,10 @@ Section: utils
 Priority: optional
 Maintainer: Jonas Smedegaard <dr@jones.dk>
 Uploaders: Micah Anderson <micah@debian.org>
-Build-Depends: cdbs,
- debhelper (>= 6),
+Build-Depends: cdbs (>= 0.4.72~),
+ debhelper,
  dh-buildinfo,
+ devscripts,
  libboost-system-dev (>> 1.35) | libboost-system1.35-dev,
  libdb++-dev | libdb4.6++-dev,
  libssl-dev,
@@ -15,7 +16,8 @@ Build-Depends: cdbs,
  libminiupnpc-dev,
  libboost-filesystem-dev (>> 1.35) | libboost-filesystem1.35-dev,
  libboost-program-options-dev (>> 1.35) | libboost-program-options1.35-dev,
- libboost-thread-dev (>> 1.35) | libboost-thread1.35-dev
+ libboost-thread-dev (>> 1.35) | libboost-thread1.35-dev,
+ libboost-test-dev (>> 1.35) | libboost-test1.35-dev
 Standards-Version: 3.9.2
 Homepage: http://www.bitcoin.org/
 Vcs-Git: git://git.debian.org/git/collab-maint/bitcoin
