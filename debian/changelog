@@ -1,3 +1,14 @@
+bitcoin (0.5.0~rc1-1) experimental; urgency=low
+
+  * New upstream prerelease.
+  * Add Github as alternate upstream source in watch file.
+  * Stop build-depending on libcrypto++-dev, and drop patch 1000:
+    Upstream no longer use crypto++.
+  * Drop patch 1003: Upstream builds dynamic by default now.
+  * Update copyright file: Drop notes on longer included sources.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Fri, 14 Oct 2011 00:16:18 +0200
+
 bitcoin (0.4.0-1) unstable; urgency=low
 
   * New upstream release.
