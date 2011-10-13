@@ -27,7 +27,7 @@ DEB_UPSTREAM_TARBALL_SRCDIR = $(DEB_UPSTREAM_PACKAGE)-$(DEB_UPSTREAM_TARBALL_VER
 DEB_UPSTREAM_TARBALL_MD5 = 4db3074a810d6bf457aa5e7468b745df
 
 # Silence .ico and .mo files in addition to the default debian files
-DEB_COPYRIGHT_CHECK_IGNORE_REGEX = ^contrib/Bitcoin.app/Contents/Resources/BitcoinAppIcon\.icns|contrib/gitian-downloader/sipa-key\.pgp|locale/.*/LC_MESSAGES/.*.mo|debian/(changelog|copyright(|_hints|_newhints))$
+DEB_COPYRIGHT_CHECK_IGNORE_REGEX = ^(src/qt/res/icons/.*\.png|contrib/Bitcoin.app/Contents/Resources/BitcoinAppIcon\.icns|contrib/gitian-downloader/sipa-key\.pgp|debian/(changelog|copyright(|_hints|_newhints)))$
 
 DEB_BUILDDIR = src
 
