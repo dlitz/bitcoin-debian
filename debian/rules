@@ -33,15 +33,12 @@ DEB_BUILDDIR = src
 
 DEB_MAKE_MAKEFILE = makefile.unix
 
-# Avoid GUI until wxWidget 2.9 is in Debian
-DEB_MAKE_BUILD_TARGET = bitcoind
-
 DEB_MAKE_CHECK_TARGET = test_bitcoin
 build/bitcoind::
 	$(if $(filter nocheck,$(DEB_BUILD_OPTIONS)),,src/test_bitcoin)
 
 # Readd default flags
-CXXFLAGS += -D__WXGTK__ -DNOPCH -DUSE_SSL
+CXXFLAGS += -DNOPCH -DUSE_SSL
 #CXXFLAGS += -Wno-invalid-offsetof -Wformat
 
 # Silence seemingly harmless noise about unused variables
@@ -64,8 +61,8 @@ CDBS_BUILD_DEPENDS += , $(call boostdep,system), libdb++-dev | libdb4.6++-dev, l
 # TODO: Drop this when maybe system json is used some day
 CDBS_BUILD_DEPENDS += , $(call boostdep,filesystem program-options thread test)
 
-# FIXME: when available, enable this and install into -gui package
-#CDBS_BUILD_DEPENDS += , libwxgtk2.9-dev
+# TODO: fix support DEB_QMAKE_BUILDDIR and install binary into -qt package
+#CDBS_BUILD_DEPENDS += , qt4-qmake, libqt4-dev
 
 CDBS_SUGGESTS_bitcoind = db-util, db4.8-util, db4.7-util
 
