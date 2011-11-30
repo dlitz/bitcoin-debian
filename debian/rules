@@ -21,9 +21,10 @@ include /usr/share/cdbs/1/class/makefile.mk
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/rules/utils.mk
 
-DEB_UPSTREAM_URL = http://downloads.sourceforge.net/sourceforge/bitcoin
-DEB_UPSTREAM_TARBALL_BASENAME_MANGLE = s/~(alpha|beta|rc)/\1/,s/$$/-src/
-DEB_UPSTREAM_TARBALL_SRCDIR = $(DEB_UPSTREAM_PACKAGE)-$(DEB_UPSTREAM_TARBALL_VERSION)
+DEB_UPSTREAM_URL = http://githubredir.debian.net/github/bitcoin/bitcoin
+DEB_UPSTREAM_TARBALL_BASENAME = v$(DEB_UPSTREAM_TARBALL_VERSION)
+DEB_UPSTREAM_TARBALL_BASENAME_MANGLE = s/~(alpha|beta|rc)/\1/
+DEB_UPSTREAM_WGET_OPTS += --no-check-certificate
 DEB_UPSTREAM_TARBALL_MD5 = 4db3074a810d6bf457aa5e7468b745df
 
 # Silence .ico and .mo files in addition to the default debian files
