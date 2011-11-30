@@ -12,6 +12,16 @@
 #include <boost/filesystem/fstream.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>
 
+#if defined(BITCOIN_NEED_QT_PLUGINS) && !defined(_BITCOIN_QT_PLUGINS_INCLUDED)
+#define _BITCOIN_QT_PLUGINS_INCLUDED
+#define __INSURE__
+#include <QtPlugin>
+Q_IMPORT_PLUGIN(qcncodecs)
+Q_IMPORT_PLUGIN(qjpcodecs)
+Q_IMPORT_PLUGIN(qtwcodecs)
+Q_IMPORT_PLUGIN(qkrcodecs)
+#endif
+
 using namespace std;
 using namespace boost;
 
@@ -34,8 +44,8 @@ void Shutdown(void* parg)
 {
     static CCriticalSection cs_Shutdown;
     static bool fTaken;
-    bool fFirstThread;
-    CRITICAL_BLOCK(cs_Shutdown)
+    bool fFirstThread = false;
+    TRY_CRITICAL_BLOCK(cs_Shutdown)
     {
         fFirstThread = !fTaken;
         fTaken = true;
@@ -352,6 +362,12 @@ bool AppInit2(int argc, char* argv[])
             strErrors += _("Error loading wallet.dat: Wallet corrupted      \n");
         else if (nLoadWalletRet == DB_TOO_NEW)
             strErrors += _("Error loading wallet.dat: Wallet requires newer version of Bitcoin      \n");
+        else if (nLoadWalletRet == DB_NEED_REWRITE)
+        {
+            strErrors += _("Wallet needed to be rewritten: restart Bitcoin to complete    \n");
+            wxMessageBox(strErrors, "Bitcoin", wxOK | wxICON_ERROR);
+            return false;
+        }
         else
             strErrors += _("Error loading wallet.dat      \n");
     }
