@@ -9,10 +9,11 @@ Copyright: 2009-2011, Bitcoin Developers
 License: Expat
 Comment: According to http://www.bitcoin.org/ the Bitcoin Developers are
   * Satoshi Nakamoto
-  * Gavin Andresen
-  * Pieter Wuille
+  * Gavin Andresen <gavinandresen@gmail.com>
+  * Pieter Wuille <pieter.wuille@gmail.com>
   * Nils Schneider <nils.schneider@gmail.com>
   * Jeff Garzik <jgarzik@exmulti.com>
+  * Wladimir J. van der Laan <laanwj@gmail.com>
 
 Files: src/json/*
 Copyright: 2007-2009, John W. Wilkinson
