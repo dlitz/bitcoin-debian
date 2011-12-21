@@ -15,6 +15,10 @@ Comment: According to http://www.bitcoin.org/ the Bitcoin Developers are
   * Jeff Garzik <jgarzik@exmulti.com>
   * Wladimir J. van der Laan <laanwj@gmail.com>
 
+Files: contrib/macdeploy/*
+Copyright: 2011, Patrick "p2k" Schneider <me@p2k-network.org>
+License: GPL-3+
+
 Files: src/json/*
 Copyright: 2007-2009, John W. Wilkinson
 License: Expat
@@ -31,7 +35,8 @@ Files: debian/*
 Copyright: 2010-2011, Jonas Smedegaard <dr@jones.dk>
 License: GPL-2+
 
-Files: debian/manpages/*
+Files: contrib/debian/manpages/*
+ debian/manpages/*
 Copyright: Micah Anderson <micah@debian.org>
 License: GPL-3+
 
