@@ -1,3 +1,15 @@
+bitcoin (0.5.0-1) UNRELEASED; urgency=low
+
+  * New upstream release.
+  * Update to use only Github (not Sourceforge) as upstream source.
+  * Update copyright file:
+    + Sync list of upstream developers with http://bitcoin.org/ .
+    + Add Files section for newly added contrib/macdeploy/*.
+    + Extend Files section for debian-provided manpages to cover
+      upstream shipped duplicate below contrib/debian.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Wed, 21 Dec 2011 11:10:39 +0700
+
 bitcoin (0.5.0~rc1-1) experimental; urgency=low
 
   * New upstream prerelease.

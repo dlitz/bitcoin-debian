@@ -8,23 +8,45 @@ Files: INSTALL
  README
  README.md
  bitcoin-qt.pro
- contrib/Bitcoin.app/Contents/Info.plist
  contrib/bitrpc/bitrpc.py
- contrib/create_osx_dmg.sh
+ contrib/debian/bin/bitcoin-qt
+ contrib/debian/bin/bitcoind
+ contrib/debian/bitcoin-qt.desktop
+ contrib/debian/bitcoin-qt.install
+ contrib/debian/bitcoin-qt.lintian-overrides
+ contrib/debian/bitcoind.examples
+ contrib/debian/bitcoind.install
+ contrib/debian/bitcoind.lintian-overrides
+ contrib/debian/bitcoind.manpages
+ contrib/debian/compat
+ contrib/debian/control
+ contrib/debian/examples/bitcoin.conf
+ contrib/debian/gbp.conf
+ contrib/debian/manpages/bitcoin.conf.5
+ contrib/debian/patches/1001_use_system_json-spirit.patch
+ contrib/debian/patches/README
+ contrib/debian/patches/series
+ contrib/debian/rules
+ contrib/debian/source/format
+ contrib/debian/watch
+ contrib/gitian-descriptors/README
  contrib/gitian-descriptors/boost-win32.yml
  contrib/gitian-descriptors/gitian-win32.yml
  contrib/gitian-descriptors/gitian.yml
- contrib/gitian-descriptors/wxwidgets-win32.yml
- contrib/gitian-descriptors/wxwidgets.yml
+ contrib/gitian-descriptors/qt-win32.yml
  contrib/gitian-downloader/bluematt-key.pgp
  contrib/gitian-downloader/devrandom-key.pgp
  contrib/gitian-downloader/gavinandresen-key.pgp
  contrib/gitian-downloader/linux-download-config
  contrib/gitian-downloader/tcatm-key.pgp
  contrib/gitian-downloader/win32-download-config
+ contrib/macdeploy/background.png
+ contrib/macdeploy/fancy.plist
+ contrib/macdeploy/notes.txt
  contrib/miniupnpc/Portfile
  contrib/pyminer/README
  contrib/pyminer/example-config.cfg
+ contrib/qt_translations.py
  contrib/wallettools/walletchangepass.py
  contrib/wallettools/walletunlock.py
  debian/NEWS
@@ -50,6 +72,7 @@ Files: INSTALL
  doc/coding.txt
  doc/readme-qt.rst
  doc/release-process.txt
+ doc/translation_process.md
  scripts/qt/extract_strings_qt.py
  scripts/qt/img/reload.xcf
  scripts/qt/make_spinner.py
@@ -59,6 +82,8 @@ Files: INSTALL
  share/pixmaps/addressbook20.bmp
  share/pixmaps/addressbook20mask.bmp
  share/pixmaps/bitcoin-bc.ico
+ share/pixmaps/bitcoin32.xpm
+ share/pixmaps/bitcoin80.xpm
  share/pixmaps/check.ico
  share/pixmaps/favicon.ico
  share/pixmaps/nsis-header.bmp
@@ -107,6 +132,8 @@ Files: INSTALL
  src/qt/guiconstants.h
  src/qt/guiutil.cpp
  src/qt/guiutil.h
+ src/qt/macdockiconhandler.h
+ src/qt/macdockiconhandler.mm
  src/qt/monitoreddatamapper.cpp
  src/qt/monitoreddatamapper.h
  src/qt/notificator.cpp
@@ -198,7 +225,25 @@ Files: src/bignum.h
 Copyright: 2009-2010, Satoshi Nakamoto
  2010, Satoshi Nakamoto
  2011, The Bitcoin developers
-License: UNKNOWN
+License: MIT/X11 (BSD like)
+ FIXME
+
+Files: doc/README
+ doc/README_windows.txt
+ doc/build-msw.txt
+ doc/build-osx.txt
+ src/makefile.osx
+ src/qt/forms/aboutdialog.ui
+ src/qt/locale/bitcoin_da.ts
+ src/qt/locale/bitcoin_en.ts
+ src/qt/locale/bitcoin_es.ts
+ src/qt/locale/bitcoin_es_CL.ts
+ src/qt/locale/bitcoin_nb.ts
+ src/qt/locale/bitcoin_zh_TW.ts
+Copyright: 2009-2010, Bitcoin Developers
+ 2009-2011, Bitcoin Developers
+ 2011, Bitcoin Developers
+License: MIT/X11 (BSD like)
  FIXME
 
 Files: src/json/json_spirit.h
@@ -216,20 +261,6 @@ Copyright: John W. Wilkinson 2007, - 2009
 License: UNKNOWN
  FIXME
 
-Files: doc/README
- doc/README_windows.txt
- doc/build-msw.txt
- doc/build-osx.txt
- src/makefile.osx
- src/qt/forms/aboutdialog.ui
- src/qt/locale/bitcoin_de.ts
- src/qt/locale/bitcoin_es.ts
-Copyright: 2009-2010, Bitcoin Developers
- 2009-2011, Bitcoin Developers
- 2011, Bitcoin Developers
-License: UNKNOWN
- FIXME
-
 Files: src/makefile.linux-mingw
  src/makefile.mingw
  src/makefile.unix
@@ -237,7 +268,7 @@ Files: src/makefile.linux-mingw
  src/qtui.h
 Copyright: 2009-2010, Satoshi Nakamoto
  2010, Satoshi Nakamoto
-License: UNKNOWN
+License: MIT/X11 (BSD like)
  FIXME
 
 Files: share/pixmaps/bitcoin.ico
@@ -248,15 +279,16 @@ Copyright:
 License: UNKNOWN
  FIXME
 
+Files: contrib/debian/manpages/bitcoind.1
+ debian/manpages/bitcoind.1
+Copyright: *No copyright*
+License: GPL
+ FIXME
+
 Files: src/crypter.cpp
  src/crypter.h
 Copyright: 2011, The Bitcoin Developers
-License: UNKNOWN
- FIXME
-
-Files: debian/manpages/bitcoind.1
-Copyright: *No copyright*
-License: GPL
+License: MIT/X11 (BSD like)
  FIXME
 
 Files: debian/rules
@@ -264,9 +296,51 @@ Copyright: 2010-2011, Jonas Smedegaard <dr@jones.dk>
 License: GPL
  FIXME
 
+Files: contrib/macdeploy/LICENSE
+Copyright: 2007, Free Software Foundation, Inc. <http://fsf.org/>
+ <year> <name of author>
+ HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
+ are not
+ disclaimer" for the program, if necessary
+ holder as a result of your choosing to follow a
+ holder explicitly and
+ holder is
+ holder is reinstated (a)
+ holder notifies you of the
+ holder who authorizes use under this
+ holder, and you cure the violation prior to 30 days after
+ holders of
+ if you do
+ law
+ law, except executing it on a
+ on the Program, and are irrevocable provided the stated
+ on the software, and (2) offer you this License
+ permission
+ permission, other than the making of an
+ treaty adopted on 20 December 1996, or
+License: GPL-3+
+ FIXME
+
+Files: contrib/macdeploy/macdeployqtplus
+Copyright: 2011, Patrick "p2k" Schneider <me@p2k-network.org>
+License: GPL-3+
+ FIXME
+
 Files: src/strlcpy.h
 Copyright: 1998, Todd C. Miller <Todd.Miller@courtesan.com>
 License: ISC
+ FIXME
+
+Files: src/qt/locale/bitcoin_de.ts
+Copyright: 2009-2011, Bitcoin Developers
+ 2009-2011, Bitcoin Entwickler
+License: MIT/X11 (BSD like)
+ FIXME
+
+Files: src/qt/locale/bitcoin_nl.ts
+Copyright: 2009-2011, Bitcoin Developers
+ 2009-2011, Bitcoin-ontwikkelaars
+License: MIT/X11 (BSD like)
  FIXME
 
 Files: COPYING
@@ -275,26 +349,54 @@ Copyright: 2009-2011, Bitcoin Developers
 License: MIT/X11 (BSD like)
  FIXME
 
-Files: src/json/LICENSE.txt
-Copyright: 2007, - 2009, John W. Wilkinson
-License: MIT/X11 (BSD like)
- FIXME
-
-Files: src/qt/locale/bitcoin_nl.ts
-Copyright: 2009-2011, Bitcoin Developers
- 2009-2011, Bitcoin-ontwikkelaars
-License: UNKNOWN
- FIXME
-
 Files: doc/build-unix.txt
 Copyright: 2009-2010, Satoshi Nakamoto
  2011, Bitcoin Developers
-License: UNKNOWN
+License: MIT/X11 (BSD like)
  FIXME
 
 Files: src/qt/locale/bitcoin_ru.ts
 Copyright: 2009-2011, Bitcoin Developers
  2009-2011, –†–∞–∑—Ä–∞–±–æ—Ç—á–∏–∫–∏ —Å–µ—Ç–∏ Bitcoin
+License: MIT/X11 (BSD like)
+ FIXME
+
+Files: src/json/LICENSE.txt
+Copyright: 2007, - 2009, John W. Wilkinson
+License: MIT/X11 (BSD like)
+ FIXME
+
+Files: src/base58.h
+Copyright: 2009-2010, Satoshi Nakamoto
+ 2011, The Bitcoin Developers
+License: MIT/X11 (BSD like)
+ FIXME
+
+Files: contrib/pyminer/pyminer.py
+Copyright: 2011, The Bitcoin developers
+License: MIT/X11 (BSD like)
+ FIXME
+
+Files: contrib/debian/copyright
+Copyright: 1998, Todd C. Miller <Todd.Miller@courtesan.com>
+ 2007-2009, John W. Wilkinson
+ 2009-2011, Bitcoin Developers
+ 2010-2011, Jonas Smedegaard <dr@jones.dk>
+ Bitboy (optimized for 16x16 by Wladimir van der Laan)
+ Crobbo (forum)
+ David Vignoni (david@icon-king.com)
+ Everaldo (Everaldo Coelho)
+ HOLDERS BE LIABLE FOR ANY
+ Micah Anderson <micah@debian.org>
+ Wladimir van der Laan
+ http://www.everaldo.com
+ md2k7
+ schollidesign
+License: Public domain
+ FIXME
+
+Files: contrib/macdeploy/background.psd
+Copyright: 1998, Hewlett-Packard Company  desc       sRGB IEC61966-2.1           sRGB IEC61966-2.1                                                  XYZ       ÛQ    ÃXYZ                 XYZ       o¢  8ı  êXYZ       bô  ∑Ö  ⁄XYZ       $†  Ñ  ∂œdesc       IEC http://www.iec.ch           IEC http://www.iec.ch                                              desc       .IEC 61966-2.1 Default RGB colour space - sRGB           .IEC 61966-2.1 Default RGB colour space - sRGB                      desc       ,Reference Viewing Condition in IEC61966-2.1           ,Reference Viewing Condition in IEC61966-2.1                          view     §˛ _. œ ÌÃ  \û   XYZ      L	V P   WÁmeas                         è   sig     CRT curv           
 License: UNKNOWN
  FIXME
 
@@ -303,14 +405,15 @@ Copyright: 2007, John W Wilkinson
 License: UNKNOWN
  FIXME
 
-Files: src/base58.h
-Copyright: 2009-2010, Satoshi Nakamoto
- 2011, The Bitcoin Developers
-License: UNKNOWN
- FIXME
-
-Files: contrib/pyminer/pyminer.py
-Copyright: 2011, The Bitcoin developers
+Files: contrib/debian/changelog
+Copyright: file files excluded from repackaged source
+ file using draft svn166 of DEP5 format
+ file:
+ file: Drop notes on longer included sources
+ format to Subversion candidate draft 162 of DEP5
+ holder for manpages, licensed as GPL-3+
+ listing
+ years in rules file header
 License: UNKNOWN
  FIXME
 
