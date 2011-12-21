@@ -68,6 +68,7 @@ Files: INSTALL
  debian/patches/series
  debian/source/format
  debian/watch
+ doc/Doxyfile
  doc/assets-attribution.txt
  doc/coding.txt
  doc/readme-qt.rst
@@ -179,6 +180,7 @@ Files: INSTALL
  src/qt/transactionview.h
  src/qt/walletmodel.cpp
  src/qt/walletmodel.h
+ src/test/Checkpoints_tests.cpp
  src/test/DoS_tests.cpp
  src/test/README
  src/test/base58_tests.cpp
@@ -238,7 +240,10 @@ Files: doc/README
  src/qt/locale/bitcoin_en.ts
  src/qt/locale/bitcoin_es.ts
  src/qt/locale/bitcoin_es_CL.ts
+ src/qt/locale/bitcoin_hu.ts
+ src/qt/locale/bitcoin_it.ts
  src/qt/locale/bitcoin_nb.ts
+ src/qt/locale/bitcoin_pt_BR.ts
  src/qt/locale/bitcoin_zh_TW.ts
 Copyright: 2009-2010, Bitcoin Developers
  2009-2011, Bitcoin Developers
@@ -277,6 +282,13 @@ Files: share/pixmaps/bitcoin.ico
  src/qt/res/images/splash2.jpg
 Copyright: 
 License: UNKNOWN
+ FIXME
+
+Files: contrib/pyminer/pyminer.py
+ src/checkpoints.cpp
+ src/checkpoints.h
+Copyright: 2011, The Bitcoin developers
+License: MIT/X11 (BSD like)
  FIXME
 
 Files: contrib/debian/manpages/bitcoind.1
@@ -361,6 +373,18 @@ Copyright: 2009-2011, Bitcoin Developers
 License: MIT/X11 (BSD like)
  FIXME
 
+Files: src/qt/locale/bitcoin_uk.ts
+Copyright: 2009-2011, Bitcoin Developers
+ 2009-2011, Розробники Bitcoin
+License: MIT/X11 (BSD like)
+ FIXME
+
+Files: src/qt/locale/bitcoin_zh_CN.ts
+Copyright: 2009-2011, Bitcoin Developers
+ 2009-2011, 比特币开发团队
+License: MIT/X11 (BSD like)
+ FIXME
+
 Files: src/json/LICENSE.txt
 Copyright: 2007, - 2009, John W. Wilkinson
 License: MIT/X11 (BSD like)
@@ -369,11 +393,6 @@ License: MIT/X11 (BSD like)
 Files: src/base58.h
 Copyright: 2009-2010, Satoshi Nakamoto
  2011, The Bitcoin Developers
-License: MIT/X11 (BSD like)
- FIXME
-
-Files: contrib/pyminer/pyminer.py
-Copyright: 2011, The Bitcoin developers
 License: MIT/X11 (BSD like)
  FIXME
 

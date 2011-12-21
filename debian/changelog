@@ -1,4 +1,4 @@
-bitcoin (0.5.0-1) UNRELEASED; urgency=low
+bitcoin (0.5.1-1) experimental; urgency=low
 
   * New upstream release.
   * Update to use only Github (not Sourceforge) as upstream source.
@@ -8,7 +8,7 @@ bitcoin (0.5.0-1) UNRELEASED; urgency=low
     + Extend Files section for debian-provided manpages to cover
       upstream shipped duplicate below contrib/debian.
 
- -- Jonas Smedegaard <dr@jones.dk>  Wed, 21 Dec 2011 11:10:39 +0700
+ -- Jonas Smedegaard <dr@jones.dk>  Wed, 21 Dec 2011 11:34:17 +0700
 
 bitcoin (0.5.0~rc1-1) experimental; urgency=low
 
