@@ -1,3 +1,11 @@
+bitcoin (0.5.1-2) UNRELEASED; urgency=low
+
+  * Add lintian override for Build-dependency on versioned Berkeley DB:
+    Used only as backporting-friendly fallback.
+  * Strip word "anonymous" from short description: Wrong advertising!
+
+ -- Jonas Smedegaard <dr@jones.dk>  Mon, 09 Jan 2012 21:02:22 +0100
+
 bitcoin (0.5.1-1) experimental; urgency=low
 
   * New upstream release.
