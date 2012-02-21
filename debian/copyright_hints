@@ -14,6 +14,7 @@ Files: INSTALL
  contrib/debian/bitcoin-qt.desktop
  contrib/debian/bitcoin-qt.install
  contrib/debian/bitcoin-qt.lintian-overrides
+ contrib/debian/bitcoin-qt.protocol
  contrib/debian/bitcoind.examples
  contrib/debian/bitcoind.install
  contrib/debian/bitcoind.lintian-overrides
@@ -31,19 +32,20 @@ Files: INSTALL
  contrib/debian/watch
  contrib/gitian-descriptors/README
  contrib/gitian-descriptors/boost-win32.yml
+ contrib/gitian-descriptors/deps-win32.yml
  contrib/gitian-descriptors/gitian-win32.yml
  contrib/gitian-descriptors/gitian.yml
  contrib/gitian-descriptors/qt-win32.yml
  contrib/gitian-downloader/bluematt-key.pgp
  contrib/gitian-downloader/devrandom-key.pgp
  contrib/gitian-downloader/gavinandresen-key.pgp
+ contrib/gitian-downloader/laanwj-key.pgp
  contrib/gitian-downloader/linux-download-config
  contrib/gitian-downloader/tcatm-key.pgp
  contrib/gitian-downloader/win32-download-config
  contrib/macdeploy/background.png
  contrib/macdeploy/fancy.plist
  contrib/macdeploy/notes.txt
- contrib/miniupnpc/Portfile
  contrib/pyminer/README
  contrib/pyminer/example-config.cfg
  contrib/qt_translations.py
@@ -96,6 +98,7 @@ Files: INSTALL
  share/pixmaps/send20.bmp
  share/pixmaps/send20mask.bmp
  share/ui.rc
+ src/obj-test/.gitignore
  src/obj/.gitignore
  src/obj/nogui/.gitignore
  src/obj/test/.gitignore
@@ -127,7 +130,9 @@ Files: INSTALL
  src/qt/forms/addressbookpage.ui
  src/qt/forms/askpassphrasedialog.ui
  src/qt/forms/editaddressdialog.ui
+ src/qt/forms/messagepage.ui
  src/qt/forms/overviewpage.ui
+ src/qt/forms/qrcodedialog.ui
  src/qt/forms/sendcoinsdialog.ui
  src/qt/forms/sendcoinsentry.ui
  src/qt/forms/transactiondescdialog.ui
@@ -136,6 +141,8 @@ Files: INSTALL
  src/qt/guiutil.h
  src/qt/macdockiconhandler.h
  src/qt/macdockiconhandler.mm
+ src/qt/messagepage.cpp
+ src/qt/messagepage.h
  src/qt/monitoreddatamapper.cpp
  src/qt/monitoreddatamapper.h
  src/qt/notificator.cpp
@@ -146,6 +153,9 @@ Files: INSTALL
  src/qt/optionsmodel.h
  src/qt/overviewpage.cpp
  src/qt/overviewpage.h
+ src/qt/qrcodedialog.cpp
+ src/qt/qrcodedialog.h
+ src/qt/qtipcserver.h
  src/qt/qvalidatedlineedit.cpp
  src/qt/qvalidatedlineedit.h
  src/qt/qvaluecombobox.cpp
@@ -186,8 +196,14 @@ Files: INSTALL
  src/test/README
  src/test/base58_tests.cpp
  src/test/base64_tests.cpp
+ src/test/getarg_tests.cpp
+ src/test/key_tests.cpp
  src/test/miner_tests.cpp
+ src/test/multisig_tests.cpp
+ src/test/rpc_tests.cpp
+ src/test/script_P2SH_tests.cpp
  src/test/script_tests.cpp
+ src/test/sigopcount_tests.cpp
  src/test/test_bitcoin.cpp
  src/test/transaction_tests.cpp
  src/test/uint160_tests.cpp
@@ -200,6 +216,7 @@ License: UNKNOWN
 Files: src/bignum.h
  src/bitcoinrpc.cpp
  src/bitcoinrpc.h
+ src/compat.h
  src/db.cpp
  src/db.h
  src/headers.h
@@ -214,6 +231,7 @@ Files: src/bignum.h
  src/main.h
  src/net.cpp
  src/net.h
+ src/netbase.cpp
  src/noui.h
  src/protocol.cpp
  src/protocol.h
@@ -226,8 +244,8 @@ Files: src/bignum.h
  src/wallet.cpp
  src/wallet.h
 Copyright: 2009-2010, Satoshi Nakamoto
+ 2009-2012, The Bitcoin developers
  2010, Satoshi Nakamoto
- 2011, The Bitcoin developers
 License: MIT/X11 (BSD like)
  FIXME
 
@@ -235,19 +253,25 @@ Files: doc/README
  doc/README_windows.txt
  doc/build-msw.txt
  doc/build-osx.txt
+ doc/build-unix.txt
  src/makefile.osx
  src/qt/forms/aboutdialog.ui
  src/qt/locale/bitcoin_da.ts
  src/qt/locale/bitcoin_en.ts
  src/qt/locale/bitcoin_es.ts
  src/qt/locale/bitcoin_es_CL.ts
+ src/qt/locale/bitcoin_hr.ts
  src/qt/locale/bitcoin_hu.ts
  src/qt/locale/bitcoin_it.ts
  src/qt/locale/bitcoin_nb.ts
+ src/qt/locale/bitcoin_pl.ts
  src/qt/locale/bitcoin_pt_BR.ts
+ src/qt/locale/bitcoin_ro_RO.ts
  src/qt/locale/bitcoin_zh_TW.ts
+ src/rpcdump.cpp
 Copyright: 2009-2010, Bitcoin Developers
  2009-2011, Bitcoin Developers
+ 2009-2012, Bitcoin Developers
  2011, Bitcoin Developers
 License: MIT/X11 (BSD like)
  FIXME
@@ -267,10 +291,20 @@ Copyright: John W. Wilkinson 2007, - 2009
 License: UNKNOWN
  FIXME
 
+Files: contrib/pyminer/pyminer.py
+ src/checkpoints.cpp
+ src/checkpoints.h
+ src/key.cpp
+ src/netbase.h
+ src/qt/qtipcserver.cpp
+Copyright: 2009-2012, The Bitcoin developers
+ 2011, The Bitcoin developers
+License: MIT/X11 (BSD like)
+ FIXME
+
 Files: src/makefile.linux-mingw
  src/makefile.mingw
  src/makefile.unix
- src/makefile.vc
  src/qtui.h
 Copyright: 2009-2010, Satoshi Nakamoto
  2010, Satoshi Nakamoto
@@ -285,13 +319,6 @@ Copyright:
 License: UNKNOWN
  FIXME
 
-Files: contrib/pyminer/pyminer.py
- src/checkpoints.cpp
- src/checkpoints.h
-Copyright: 2011, The Bitcoin developers
-License: MIT/X11 (BSD like)
- FIXME
-
 Files: contrib/debian/manpages/bitcoind.1
  debian/manpages/bitcoind.1
 Copyright: *No copyright*
@@ -300,7 +327,7 @@ License: GPL
 
 Files: src/crypter.cpp
  src/crypter.h
-Copyright: 2011, The Bitcoin Developers
+Copyright: 2009-2012, The Bitcoin Developers
 License: MIT/X11 (BSD like)
  FIXME
 
@@ -344,45 +371,159 @@ Copyright: 1998, Todd C. Miller <Todd.Miller@courtesan.com>
 License: ISC
  FIXME
 
+Files: src/qt/locale/bitcoin_fa.ts
+Copyright: %d ارتباط %d</translation>
+ %n باز شده برای</numerusform>
+ )%s%d</translation>
+ 1%1 </translation>
+ 2% و بیشتر%2</translation>
+ 2009-2011, Bitcoin Developers
+ 2009-2012, Bitcoin Developers
+ OpenSSL Toolkit (http://www.openssl.org/) برای استفاده در OpenSSL این عبارتند از نرمافزار
+ از دیگر گره ها در یافت نشده بدین دلیل شاید قابل قابول نیست</translation>
+ باز �ردن بندر بیت�ویین در روتر . این فقط در مواردی می باشد �ه روتر با �م� یو پ ن پ �ار می �ند</translation>
+ باشند. هنگامی �ه بلون ایجاد می شود به شب�ه ارسال می شود تا در زنجیر بلو�ها اضافه شود. و گر نه بلو� به غیر قابول و غیر ارسال عوض می شود. این اتفاقی می افتد وقتی �ه همزمان گره دیگر در بلو� ایجاد می شود.</translation>
+ باشند. هنگامی �ه بلون ایجاد می شود به شب�ه ارسال می شود تا در زنجیر بلو�ها اضافه شود. و گر نه بلو� به غیر قابول و غیر ارسال عوض می شود. این اتفاقی می افتد وقتی �ه همزمان گره دیگر در بلو� ایجاد می شود</translation>
+ برای فرمان </translation>
+ حق چاپ 2011-2009,
+ خواهد �ردو آیا شما می خواهید این پول پر داخت %s�نید؟</translation>
+ خواهد �ردو آیا شما می خواهید این پول پر داخت%1</translation>
+ در حال پیشرفت</translation>
+ در یافت شده تولید شده بود %1 </translation>
+ عملیات ارسال فقط می‌توان ی� بار به هر نشانی ارسال �رد</translation>
+ معاملات</translation>
+ های در صد%d</translation>
+ پایین است </translation>
+ �نید. اگر ساعت درست نیست بیت�ویین مناسب نخواهد �ار �رد</translation>
+ �نید</translation>
+ �یلو بیت می باشد و 0.01 دستمزد پیشنهاد می شود</translation>
+ یانگ </translation>
+ یانگ {2009-2012, ?} {11 ?}</translation>
+License: MIT/X11 (BSD like)
+ FIXME
+
+Files: src/qt/locale/bitcoin_fr_FR.ts
+Copyright: (%s sera consid�r� comme mûr suite à %d blocs de plus)</translation>
+ (par ex. 1NS17iag9jJgTHD1VXjvLCEnZuQ3rJDE9L)</translation>
+ (pas accept�)</translation>
+ - Attention : ce bloc n&apos;a �t� reçu par aucun autre nœud et ne sera probablement pas accept� !</translation>
+ 2009-2011, Bitcoin Developers
+ 2009-2011, D�veloppeurs de Bitcoin
+ 2009-2012, Bitcoin Developers
+ :</translation>
+ </translation>
+ accept�</translation>
+ annul� </translation>
+ annul�e</translation>
+ au ou enlev� du solde.</translation>
+ ce bloc, il a �t� diffus� sur le r�seau pour être ajout� à la chaîne des blocs. S&apos;il �choue a int�grer la chaîne, il sera modifi� en « pas accept� » et il ne sera pas possible de le d�penser. Cela peut arriver occasionnellement si un autre nœud g�nère un bloc quelques secondes avant ou après vous.</translation>
+ chiffr�
+ comme mûr suite à %d blocs de plus)</translation>
+ d&apos;affichage des montants : </translation>
+ diffus�e avec succès</translation>
+ en raison d&apos;une erreur interne. Votre porte-monnaie n&apos;a pas �t� chiffr�.</translation>
+ envoy�, mais le destinataire est dans l&apos;incapacit� de la v�rifier
+ envoy�, mais une r�ponse invalide fut reçue</translation>
+ est activ�e.</translation>
+ et va se terminer. </translation>
+ g�n�r� %1.</translation>
+ mais pas accept�</translation>
+ modifi�e avec succès.</translation>
+ modifi�e.</translation>
+ par d�faut pour l&apos;affichage dans l&apos;interface et lors de l&apos;envoi de pièces</translation>
+ rejet�e. Cela peut arriver si certaines pièces de votre porte-monnaie ont d�jà �t� d�pens�es, par exemple si vous avez utilis� une copie de wallet.dat et si des pièces ont �t� d�pens�es avec cette copie sans être marqu�es comme telles ici.</translation>
+ reçu par aucun autre nœud et ne sera probablement pas accept� !</translation>
+ sous licence MIT/X11, voir le fichier license.txt ou http://www.opensource.org/licenses/mit-license.php
+ à</translation>
+License: MIT/X11 (BSD like)
+ FIXME
+
 Files: src/qt/locale/bitcoin_de.ts
 Copyright: 2009-2011, Bitcoin Developers
  2009-2011, Bitcoin Entwickler
+ 2009-2012, Bitcoin Developers
+License: MIT/X11 (BSD like)
+ FIXME
+
+Files: src/qt/locale/bitcoin_tr.ts
+Copyright: 2009-2011, Bitcoin Developers
+ 2009-2011, Bitcoin geliştiricileri
+ 2009-2012, Bitcoin Developers
 License: MIT/X11 (BSD like)
  FIXME
 
 Files: src/qt/locale/bitcoin_nl.ts
 Copyright: 2009-2011, Bitcoin Developers
  2009-2011, Bitcoin-ontwikkelaars
+ 2009-2012, Bitcoin Developers
+License: MIT/X11 (BSD like)
+ FIXME
+
+Files: src/qt/locale/bitcoin_fi.ts
+Copyright: 2009-2011, Bitcoin Developers
+ 2009-2011, Bitcoinin kehittäjät
+ 2009-2012, Bitcoin Developers
+License: MIT/X11 (BSD like)
+ FIXME
+
+Files: src/qt/locale/bitcoin_sv.ts
+Copyright: 2009-2011, Bitcoin Developers
+ 2009-2011, Bitcoins Utvecklare
+ 2009-2012, Bitcoin Developers
 License: MIT/X11 (BSD like)
  FIXME
 
 Files: COPYING
-Copyright: 2009-2011, Bitcoin Developers
+Copyright: 2009-2012, Bitcoin Developers
  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 License: MIT/X11 (BSD like)
  FIXME
 
-Files: doc/build-unix.txt
-Copyright: 2009-2010, Satoshi Nakamoto
- 2011, Bitcoin Developers
+Files: src/qt/locale/bitcoin_cs_CZ.ts
+Copyright: 2009-2011, Bitcoin Developers
+ 2009-2012, Bitcoin Developers
+ a nov� heslo k peněžence.</translation>
+ adresy do schránky</translation>
+ adresy jednotlivým plátcům, a tak rozlišovat jejich platby.</translation>
+ adresy ze seznamu. Mohou být odstraněny pouze odchozí adresy.</translation>
+ heslo je příliš krátk�.</translation>
+ heslo k peněžence
+ heslo k peněžence.&lt;br/&gt;Použijte prosím heslo sestávající z&lt;b&gt;10 nebo více náhodných znaků&lt;/b&gt;, nebo z &lt;b&gt;osmi a více slov&lt;/b&gt;.</translation>
+ heslo k peněžence.</translation>
+ heslo k peněžence</translation>
+ heslo pro dešifrování peněženky nebylo správn�.</translation>
+ heslo, PŘIJDETE O VEŠKERÉ SVÉ BITCOINY!
+ heslo</translation>
+ k dešifrování peněženky nebylo správn�</translation>
+ lišty namísto do hlavního panelu</translation>
+ liště</translation>
+ množství transakcí</translation>
+ se mají zobrazovat v rozhraní a při odesílání mincí.</translation>
+ transakce&lt;/b&gt;</translation>
+ transakce</translation>
+ z mincí ve Vaši peněžence již byly utraceny, např. pokud jste někde použili kopii souboru wallet.dat a mince utratili.</translation>
+ zpracovávají Vaše transakce a pomáhají podporovat síť. Chcete zaplatit poplatek?</translation>
 License: MIT/X11 (BSD like)
  FIXME
 
 Files: src/qt/locale/bitcoin_ru.ts
 Copyright: 2009-2011, Bitcoin Developers
  2009-2011, Разработчики сети Bitcoin
+ 2009-2012, Bitcoin Developers
 License: MIT/X11 (BSD like)
  FIXME
 
 Files: src/qt/locale/bitcoin_uk.ts
 Copyright: 2009-2011, Bitcoin Developers
  2009-2011, Розробники Bitcoin
+ 2009-2012, Bitcoin Developers
 License: MIT/X11 (BSD like)
  FIXME
 
 Files: src/qt/locale/bitcoin_zh_CN.ts
 Copyright: 2009-2011, Bitcoin Developers
  2009-2011, 比特币开发团队
+ 2009-2012, Bitcoin Developers
 License: MIT/X11 (BSD like)
  FIXME
 
@@ -393,7 +534,7 @@ License: MIT/X11 (BSD like)
 
 Files: src/base58.h
 Copyright: 2009-2010, Satoshi Nakamoto
- 2011, The Bitcoin Developers
+ 2009-2012, The Bitcoin Developers
 License: MIT/X11 (BSD like)
  FIXME
 
@@ -413,6 +554,11 @@ Copyright: 1998, Todd C. Miller <Todd.Miller@courtesan.com>
  md2k7
  schollidesign
 License: Public domain
+ FIXME
+
+Files: src/qt/res/images/qrcode.png
+Copyright: ���������SSS�Z-q���g|||OO��`0��Լ�� p��u�.�RP��`��֟�Bpj ��� ~�!�J��� &����T*)�Z�njj��{��I:;;g��Ν;TjWW�X,�?�D����1h��555�,&��۷�g���b�BCC
+License: UNKNOWN
  FIXME
 
 Files: contrib/macdeploy/background.psd

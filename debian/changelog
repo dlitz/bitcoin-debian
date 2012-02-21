@@ -1,3 +1,11 @@
+bitcoin (0.6.0~rc1-1) experimental; urgency=low
+
+  * New upstream prerelease.
+  * Update copyright file: Extend copyright years.
+  * Stop setting HOME during regression tests: Fixed upstream.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Tue, 21 Feb 2012 18:17:16 +0100
+
 bitcoin (0.5.2-1) unstable; urgency=low
 
   * New upstream release.
