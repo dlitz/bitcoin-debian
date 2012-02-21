@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2011 The Bitcoin developers
+// Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_WALLET_H
@@ -7,6 +7,7 @@
 
 #include "bignum.h"
 #include "key.h"
+#include "keystore.h"
 #include "script.h"
 
 class CWalletTx;
@@ -69,16 +70,20 @@ public:
     bool AddCryptedKey(const std::vector<unsigned char> &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret);
     // Adds an encrypted key to the store, without saving it to disk (used by LoadWallet)
     bool LoadCryptedKey(const std::vector<unsigned char> &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret) { return CCryptoKeyStore::AddCryptedKey(vchPubKey, vchCryptedSecret); }
+    bool AddCScript(const CScript& redeemScript);
+    bool LoadCScript(const CScript& redeemScript) { return CCryptoKeyStore::AddCScript(redeemScript); }
 
     bool Unlock(const SecureString& strWalletPassphrase);
     bool ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase);
     bool EncryptWallet(const SecureString& strWalletPassphrase);
 
+    void MarkDirty();
     bool AddToWallet(const CWalletTx& wtxIn);
-    bool AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pblock, bool fUpdate = false);
+    bool AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pblock, bool fUpdate = false, bool fFindBlock = false);
     bool EraseFromWallet(uint256 hash);
     void WalletUpdateSpent(const CTransaction& prevout);
     int ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate = false);
+    int ScanForWalletTransaction(const uint256& hashTx);
     void ReacceptWalletTransactions();
     void ResendWalletTransactions();
     int64 GetBalance() const;
@@ -86,17 +91,18 @@ public:
     bool CreateTransaction(const std::vector<std::pair<CScript, int64> >& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, int64& nFeeRet);
     bool CreateTransaction(CScript scriptPubKey, int64 nValue, CWalletTx& wtxNew, CReserveKey& reservekey, int64& nFeeRet);
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
-    bool BroadcastTransaction(CWalletTx& wtxNew);
     std::string SendMoney(CScript scriptPubKey, int64 nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToBitcoinAddress(const CBitcoinAddress& address, int64 nValue, CWalletTx& wtxNew, bool fAskFee=false);
 
     bool NewKeyPool();
     bool TopUpKeyPool();
+    int64 AddReserveKey(const CKeyPool& keypool);
     void ReserveKeyFromKeyPool(int64& nIndex, CKeyPool& keypool);
     void KeepKey(int64 nIndex);
     void ReturnKey(int64 nIndex);
     bool GetKeyFromPool(std::vector<unsigned char> &key, bool fAllowReuse=true);
     int64 GetOldestKeyPoolTime();
+    void GetAllReserveAddresses(std::set<CBitcoinAddress>& setAddress);
 
     bool IsMine(const CTxIn& txin) const;
     int64 GetDebit(const CTxIn& txin) const;
@@ -110,15 +116,7 @@ public:
             throw std::runtime_error("CWallet::GetCredit() : value out of range");
         return (IsMine(txout) ? txout.nValue : 0);
     }
-    bool IsChange(const CTxOut& txout) const
-    {
-        CBitcoinAddress address;
-        if (ExtractAddress(txout.scriptPubKey, this, address))
-            CRITICAL_BLOCK(cs_wallet)
-                if (!mapAddressBook.count(address))
-                    return true;
-        return false;
-    }
+    bool IsChange(const CTxOut& txout) const;
     int64 GetChange(const CTxOut& txout) const
     {
         if (!MoneyRange(txout.nValue))
@@ -243,9 +241,10 @@ public:
 //
 class CWalletTx : public CMerkleTx
 {
-public:
+private:
     const CWallet* pwallet;
 
+public:
     std::vector<CMerkleTx> vtxPrev;
     std::map<std::string, std::string> mapValue;
     std::vector<std::pair<std::string, std::string> > vOrderForm;
@@ -387,6 +386,12 @@ public:
         fAvailableCreditCached = false;
         fDebitCached = false;
         fChangeCached = false;
+    }
+
+    void BindWallet(CWallet *pwalletIn)
+    {
+        pwallet = pwalletIn;
+        MarkDirty();
     }
 
     void MarkSpent(unsigned int nOut)

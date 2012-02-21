@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2011 The Bitcoin developers
+// Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
 
@@ -131,7 +131,7 @@ CDB::CDB(const char* pszFile, const char* pszMode) : pdb(NULL)
             {
                 bool fTmp = fReadOnly;
                 fReadOnly = false;
-                WriteVersion(VERSION);
+                WriteVersion(CLIENT_VERSION);
                 fReadOnly = fTmp;
             }
 
@@ -236,7 +236,7 @@ bool CDB::Rewrite(const string& strFile, const char* pszSkip)
                             {
                                 // Update version:
                                 ssValue.clear();
-                                ssValue << VERSION;
+                                ssValue << CLIENT_VERSION;
                             }
                             Dbt datKey(&ssKey[0], ssKey.size());
                             Dbt datValue(&ssValue[0], ssValue.size());
@@ -810,7 +810,7 @@ int CWalletDB::LoadWallet(CWallet* pwallet)
                 ssKey >> hash;
                 CWalletTx& wtx = pwallet->mapWallet[hash];
                 ssValue >> wtx;
-                wtx.pwallet = pwallet;
+                wtx.BindWallet(pwallet);
 
                 if (wtx.GetHash() != hash)
                     printf("Error in wallet.dat, hash mismatch\n");
@@ -860,13 +860,19 @@ int CWalletDB::LoadWallet(CWallet* pwallet)
                 {
                     CPrivKey pkey;
                     ssValue >> pkey;
+                    key.SetPubKey(vchPubKey);
                     key.SetPrivKey(pkey);
+                    if (key.GetPubKey() != vchPubKey || !key.IsValid())
+                        return DB_CORRUPT;
                 }
                 else
                 {
                     CWalletKey wkey;
                     ssValue >> wkey;
+                    key.SetPubKey(vchPubKey);
                     key.SetPrivKey(wkey.vchPrivKey);
+                    if (key.GetPubKey() != vchPubKey || !key.IsValid())
+                        return DB_CORRUPT;
                 }
                 if (!pwallet->LoadKey(key))
                     return DB_CORRUPT;
@@ -931,8 +937,17 @@ int CWalletDB::LoadWallet(CWallet* pwallet)
             {
                 int nMinVersion = 0;
                 ssValue >> nMinVersion;
-                if (nMinVersion > VERSION)
+                if (nMinVersion > CLIENT_VERSION)
                     return DB_TOO_NEW;
+            }
+            else if (strType == "cscript")
+            {
+                uint160 hash;
+                ssKey >> hash;
+                CScript script;
+                ssValue >> script;
+                if (!pwallet->LoadCScript(script))
+                    return DB_CORRUPT;
             }
         }
         pcursor->close();
@@ -956,13 +971,13 @@ int CWalletDB::LoadWallet(CWallet* pwallet)
     if (fIsEncrypted && (nFileVersion == 40000 || nFileVersion == 50000))
         return DB_NEED_REWRITE;
 
-    if (nFileVersion < VERSION) // Update
+    if (nFileVersion < CLIENT_VERSION) // Update
     {
         // Get rid of old debug.log file in current directory
         if (nFileVersion <= 105 && !pszSetDataDir[0])
             unlink("debug.log");
 
-        WriteVersion(VERSION);
+        WriteVersion(CLIENT_VERSION);
     }
 
     return DB_LOAD_OK;
@@ -975,7 +990,7 @@ void ThreadFlushWalletDB(void* parg)
     if (fOneThread)
         return;
     fOneThread = true;
-    if (mapArgs.count("-noflushwallet"))
+    if (!GetBoolArg("-flushwallet", true))
         return;
 
     unsigned int nLastSeen = nWalletDBUpdated;
