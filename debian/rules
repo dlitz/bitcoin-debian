@@ -36,7 +36,7 @@ DEB_MAKE_MAKEFILE = makefile.unix
 
 DEB_MAKE_CHECK_TARGET = test_bitcoin
 build/bitcoind::
-	$(if $(filter nocheck,$(DEB_BUILD_OPTIONS)),,src/test_bitcoin)
+	$(if $(filter nocheck,$(DEB_BUILD_OPTIONS)),,HOME="$(cdbs_curbuilddir)" src/test_bitcoin)
 
 # Readd default flags
 CXXFLAGS += -DNOPCH -DUSE_SSL
