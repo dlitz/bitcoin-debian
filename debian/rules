@@ -36,7 +36,8 @@ DEB_MAKE_MAKEFILE = makefile.unix
 
 DEB_MAKE_CHECK_TARGET = test_bitcoin
 build/bitcoind::
-	$(if $(filter nocheck,$(DEB_BUILD_OPTIONS)),,HOME="$(cdbs_curbuilddir)" src/test_bitcoin)
+	mkdir -p testhome
+	$(if $(filter nocheck,$(DEB_BUILD_OPTIONS)),,HOME="testhome" src/test_bitcoin)
 
 # Readd default flags
 CXXFLAGS += -DNOPCH -DUSE_SSL
@@ -75,6 +76,7 @@ pre-build::
 clean::
 	find src/obj -type f -not -name .gitignore -delete
 	rm -f src/bitcoind
+	rm -rf testhome
 
 # Ensure wrapper is set executable
 binary-post-install/bitcoind::
