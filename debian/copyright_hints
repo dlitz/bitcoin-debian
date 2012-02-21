@@ -66,6 +66,7 @@ Files: INSTALL
  debian/patches/1001_use_system_json-spirit.patch
  debian/patches/README
  debian/patches/series
+ debian/source.lintian-overrides
  debian/source/format
  debian/watch
  doc/Doxyfile
@@ -305,7 +306,7 @@ License: MIT/X11 (BSD like)
 
 Files: debian/rules
 Copyright: 2010-2011, Jonas Smedegaard <dr@jones.dk>
-License: GPL
+License: GPL-2+
  FIXME
 
 Files: contrib/macdeploy/LICENSE
