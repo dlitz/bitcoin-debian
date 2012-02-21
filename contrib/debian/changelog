@@ -1,8 +1,13 @@
-bitcoin (0.5.2-natty0) natty; urgency=low
+bitcoin (0.5.1-natty1) natty; urgency=low
 
-  * New upstream release.
+  * Remove mentions on anonymity in package descriptions and manpage.
+    These should never have been there, bitcoin isnt anonymous without
+    a ton of work that virtually no users will ever be willing and
+    capable of doing
+  * Add GNOME/KDE support for bitcoin-qt's bitcoin: URI support.
+    Thanks to luke-jr for the KDE .protocol file.
 
- -- Luke Dashjr <luke+bitcoin+deb@dashjr.org>  Fri, 16 Dec 2011 17:57:00 -0500
+ -- Matt Corallo <matt@bluematt.me>  Fri, 23 Dec 2011 20:25:00 -0500
 
 bitcoin (0.5.1-natty0) natty; urgency=low
 
