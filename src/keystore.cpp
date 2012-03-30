@@ -8,16 +8,6 @@
 #include "db.h"
 #include "script.h"
 
-std::vector<unsigned char> CKeyStore::GenerateNewKey()
-{
-    RandAddSeedPerfmon();
-    CKey key;
-    key.MakeNewKey();
-    if (!AddKey(key))
-        throw std::runtime_error("CKeyStore::GenerateNewKey() : AddKey failed");
-    return key.GetPubKey();
-}
-
 bool CKeyStore::GetPubKey(const CBitcoinAddress &address, std::vector<unsigned char> &vchPubKeyOut) const
 {
     CKey key;
@@ -192,7 +182,7 @@ bool CCryptoKeyStore::EncryptKeys(CKeyingMaterial& vMasterKeyIn)
         BOOST_FOREACH(KeyMap::value_type& mKey, mapKeys)
         {
             CKey key;
-            if (!key.SetSecret(mKey.second.first, false))
+            if (!key.SetSecret(mKey.second.first, mKey.second.second))
                 return false;
             const std::vector<unsigned char> vchPubKey = key.GetPubKey();
             std::vector<unsigned char> vchCryptedSecret;

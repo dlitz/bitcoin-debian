@@ -23,6 +23,7 @@ typedef long long  int64;
 typedef unsigned long long  uint64;
 
 #ifdef WIN32
+#define _WIN32_WINNT 0x0501
 #include <windows.h>
 // This is used to attempt to keep keying material out of swap
 // Note that VirtualLock does not provide this as a guarantee on Windows,
@@ -264,11 +265,11 @@ uint64 ReadCompactSize(Stream& is)
 
 
 
-//
-// Wrapper for serializing arrays and POD
-// There's a clever template way to make arrays serialize normally, but MSVC6 doesn't support it
-//
 #define FLATDATA(obj)   REF(CFlatData((char*)&(obj), (char*)&(obj) + sizeof(obj)))
+
+/** Wrapper for serializing arrays and POD.
+ * There's a clever template way to make arrays serialize normally, but MSVC6 doesn't support it.
+ */
 class CFlatData
 {
 protected:
@@ -301,9 +302,7 @@ public:
 
 
 
-//
-// string stored as a fixed length field
-//
+/** string stored as a fixed length field */
 template<std::size_t LEN>
 class CFixedFieldString
 {
@@ -855,11 +854,11 @@ struct zero_after_free_allocator : public std::allocator<T>
 
 
 
-//
-// Double ended buffer combining vector and stream-like interfaces.
-// >> and << read and write unformatted data using the above serialization templates.
-// Fills with data in linear time; some stringstream implementations take N^2 time.
-//
+/** Double ended buffer combining vector and stream-like interfaces.
+ *
+ * >> and << read and write unformatted data using the above serialization templates.
+ * Fills with data in linear time; some stringstream implementations take N^2 time.
+ */
 class CDataStream
 {
 protected:
@@ -1219,12 +1218,12 @@ int main(int argc, char *argv[])
 
 
 
-//
-// Automatic closing wrapper for FILE*
-//  - Will automatically close the file when it goes out of scope if not null.
-//  - If you're returning the file pointer, return file.release().
-//  - If you need to close the file early, use file.fclose() instead of fclose(file).
-//
+/** RAII wrapper for FILE*.
+ *
+ * Will automatically close the file when it goes out of scope if not null.
+ * If you're returning the file pointer, return file.release().
+ * If you need to close the file early, use file.fclose() instead of fclose(file).
+ */
 class CAutoFile
 {
 protected:

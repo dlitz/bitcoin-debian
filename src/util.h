@@ -85,10 +85,11 @@ T* alignup(T* p)
 #define strlwr(psz)         to_lower(psz)
 #define _strlwr(psz)        to_lower(psz)
 #define MAX_PATH            1024
-#define Beep(n1,n2)         (0)
 inline void Sleep(int64 n)
 {
-    boost::thread::sleep(boost::get_system_time() + boost::posix_time::milliseconds(n));
+    /*Boost has a year 2038 problem— if the request sleep time is past epoch+2^31 seconds the sleep returns instantly.
+      So we clamp our sleeps here to 10 years and hope that boost is fixed by 2028.*/
+    boost::thread::sleep(boost::get_system_time() + boost::posix_time::milliseconds(n>315576000000LL?315576000000LL:n));
 }
 #endif
 
@@ -151,7 +152,7 @@ void GetDataDir(char* pszDirRet);
 std::string GetConfigFile();
 std::string GetPidFile();
 void CreatePidFile(std::string pidFile, pid_t pid);
-void ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet, std::map<std::string, std::vector<std::string> >& mapMultiSettingsRet);
+bool ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet, std::map<std::string, std::vector<std::string> >& mapMultiSettingsRet);
 #ifdef WIN32
 std::string MyGetSpecialFolderPath(int nFolder, bool fCreate);
 #endif
@@ -178,7 +179,7 @@ void AddTimeData(const CNetAddr& ip, int64 nTime);
 
 
 
-// Wrapper to automatically initialize mutex
+/** Wrapper to automatically initialize mutex. */
 class CCriticalSection
 {
 protected:
@@ -191,7 +192,7 @@ public:
     bool TryEnter(const char* pszName, const char* pszFile, int nLine);
 };
 
-// Automatically leave critical section when leaving block, needed for exception safety
+/** RAII object that acquires mutex. Needed for exception safety. */
 class CCriticalBlock
 {
 protected:
@@ -218,6 +219,13 @@ public:
 #define CRITICAL_BLOCK(cs)     \
     if (CCriticalBlock criticalblock = CCriticalBlock(cs, #cs, __FILE__, __LINE__))
 
+#define ENTER_CRITICAL_SECTION(cs) \
+    (cs).Enter(#cs, __FILE__, __LINE__)
+
+#define LEAVE_CRITICAL_SECTION(cs) \
+    (cs).Leave()
+
+/** RAII object that tries to acquire mutex. Needed for exception safety. */
 class CTryCriticalBlock
 {
 protected:
@@ -325,25 +333,6 @@ std::string HexStr(const T itbegin, const T itend, bool fSpaces=false)
 inline std::string HexStr(const std::vector<unsigned char>& vch, bool fSpaces=false)
 {
     return HexStr(vch.begin(), vch.end(), fSpaces);
-}
-
-template<typename T>
-std::string HexNumStr(const T itbegin, const T itend, bool f0x=true)
-{
-    if (itbegin == itend)
-        return "";
-    const unsigned char* pbegin = (const unsigned char*)&itbegin[0];
-    const unsigned char* pend = pbegin + (itend - itbegin) * sizeof(itbegin[0]);
-    std::string str = (f0x ? "0x" : "");
-    str.reserve(str.size() + (pend-pbegin) * 2);
-    for (const unsigned char* p = pend-1; p >= pbegin; p--)
-        str += strprintf("%02x", *p);
-    return str;
-}
-
-inline std::string HexNumStr(const std::vector<unsigned char>& vch, bool f0x=true)
-{
-    return HexNumStr(vch.begin(), vch.end(), f0x);
 }
 
 template<typename T>
@@ -467,21 +456,6 @@ bool SoftSetBoolArg(const std::string& strArg, bool fValue);
         }                                       \
     }
 
-#define CATCH_PRINT_EXCEPTION(pszFn)     \
-    catch (std::exception& e) {          \
-        PrintException(&e, (pszFn));     \
-    } catch (...) {                      \
-        PrintException(NULL, (pszFn));   \
-    }
-
-
-
-
-
-
-
-
-
 
 template<typename T1>
 inline uint256 Hash(const T1 pbegin, const T1 pend)
@@ -550,8 +524,9 @@ inline uint160 Hash160(const std::vector<unsigned char>& vch)
 }
 
 
-// Median filter over a stream of values
-// Returns the median of the last N numbers
+/** Median filter over a stream of values. 
+ * Returns the median of the last N numbers
+ */
 template <typename T> class CMedianFilter
 {
 private:
@@ -679,11 +654,6 @@ inline void SetThreadPriority(int nPriority)
 #else
     setpriority(PRIO_PROCESS, 0, nPriority);
 #endif
-}
-
-inline bool TerminateThread(pthread_t hthread, unsigned int nExitCode)
-{
-    return (pthread_cancel(hthread) == 0);
 }
 
 inline void ExitThread(size_t nExitCode)

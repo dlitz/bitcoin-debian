@@ -30,16 +30,7 @@ void ipcThread(void* parg)
         ptime d = boost::posix_time::microsec_clock::universal_time() + millisec(100);
         if(mq->timed_receive(&strBuf, sizeof(strBuf), nSize, nPriority, d))
         {
-            strBuf[nSize] = '\0';
-            // Convert bitcoin:// URLs to bitcoin: URIs
-            if (strBuf[8] == '/' && strBuf[9] == '/')
-            {
-                for (int i = 8; i < 256; i++)
-                {
-                    strBuf[i] = strBuf[i+2];
-                }
-            }
-            ThreadSafeHandleURL(strBuf);
+            ThreadSafeHandleURL(std::string(strBuf, nSize));
             Sleep(1000);
         }
         if (fShutdown)
@@ -53,6 +44,17 @@ void ipcThread(void* parg)
 
 void ipcInit()
 {
+#ifdef MAC_OSX
+    // TODO: implement bitcoin: URI handling the Mac Way
+    return;
+#endif
+#ifdef WIN32
+    // TODO: THOROUGHLY test boost::interprocess fix,
+    // and make sure there are no Windows argument-handling exploitable
+    // problems.
+    return;
+#endif
+
     message_queue* mq;
     char strBuf[257];
     size_t nSize;
@@ -66,16 +68,7 @@ void ipcInit()
             ptime d = boost::posix_time::microsec_clock::universal_time() + millisec(1);
             if(mq->timed_receive(&strBuf, sizeof(strBuf), nSize, nPriority, d))
             {
-                strBuf[nSize] = '\0';
-                // Convert bitcoin:// URLs to bitcoin: URIs
-                if (strBuf[8] == '/' && strBuf[9] == '/')
-                {
-                    for (int i = 8; i < 256; i++)
-                    {
-                        strBuf[i] = strBuf[i+2];
-                    }
-                }
-                ThreadSafeHandleURL(strBuf);
+                ThreadSafeHandleURL(std::string(strBuf, nSize));
             }
             else
                 break;

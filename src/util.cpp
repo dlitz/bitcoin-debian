@@ -454,6 +454,21 @@ vector<unsigned char> ParseHex(const string& str)
     return ParseHex(str.c_str());
 }
 
+static void InterpretNegativeSetting(string name, map<string, string>& mapSettingsRet)
+{
+    // interpret -nofoo as -foo=0 (and -nofoo=0 as -foo=1) as long as -foo not set
+    if (name.find("-no") == 0)
+    {
+        std::string positive("-");
+        positive.append(name.begin()+3, name.end());
+        if (mapSettingsRet.count(positive) == 0)
+        {
+            bool value = !GetBoolArg(name);
+            mapSettingsRet[positive] = (value ? "1" : "0");
+        }
+    }
+}
+
 void ParseParameters(int argc, const char*const argv[])
 {
     mapArgs.clear();
@@ -494,17 +509,8 @@ void ParseParameters(int argc, const char*const argv[])
             name = singleDash;
         }
 
-        //  interpret -nofoo as -foo=0 (and -nofoo=0 as -foo=1, as long as -foo not set)
-        if (name.find("-no") == 0)
-        {
-            std::string positive("-");
-            positive.append(name.begin()+3, name.end());
-            if (mapArgs.count(positive) == 0)
-            {
-                bool value = !GetBoolArg(name);
-                mapArgs[positive] = (value ? "1" : "0");
-            }
-        }
+        // interpret -nofoo as -foo=0 (and -nofoo=0 as -foo=1) as long as -foo not set
+        InterpretNegativeSetting(name, mapArgs);
     }
 }
 
@@ -761,17 +767,6 @@ void PrintException(std::exception* pex, const char* pszThread)
     throw;
 }
 
-void ThreadOneMessageBox(string strMessage)
-{
-    // Skip message boxes if one is already open
-    static bool fMessageBoxOpen;
-    if (fMessageBoxOpen)
-        return;
-    fMessageBoxOpen = true;
-    ThreadSafeMessageBox(strMessage, "Bitcoin", wxOK | wxICON_EXCLAMATION);
-    fMessageBoxOpen = false;
-}
-
 void PrintExceptionContinue(std::exception* pex, const char* pszThread)
 {
     char pszMessage[10000];
@@ -781,46 +776,23 @@ void PrintExceptionContinue(std::exception* pex, const char* pszThread)
     strMiscWarning = pszMessage;
 }
 
-
-
-
-
-
-
-
 #ifdef WIN32
-typedef WINSHELLAPI BOOL (WINAPI *PSHGETSPECIALFOLDERPATHA)(HWND hwndOwner, LPSTR lpszPath, int nFolder, BOOL fCreate);
-
 string MyGetSpecialFolderPath(int nFolder, bool fCreate)
 {
-    char pszPath[MAX_PATH+100] = "";
-
-    // SHGetSpecialFolderPath isn't always available on old Windows versions
-    HMODULE hShell32 = LoadLibraryA("shell32.dll");
-    if (hShell32)
+    char pszPath[MAX_PATH] = "";
+    if(SHGetSpecialFolderPathA(NULL, pszPath, nFolder, fCreate))
     {
-        PSHGETSPECIALFOLDERPATHA pSHGetSpecialFolderPath =
-            (PSHGETSPECIALFOLDERPATHA)GetProcAddress(hShell32, "SHGetSpecialFolderPathA");
-        if (pSHGetSpecialFolderPath)
-            (*pSHGetSpecialFolderPath)(NULL, pszPath, nFolder, fCreate);
-        FreeModule(hShell32);
+        return pszPath;
     }
-
-    // Backup option
-    if (pszPath[0] == '\0')
+    else if (nFolder == CSIDL_STARTUP)
     {
-        if (nFolder == CSIDL_STARTUP)
-        {
-            strcpy(pszPath, getenv("USERPROFILE"));
-            strcat(pszPath, "\\Start Menu\\Programs\\Startup");
-        }
-        else if (nFolder == CSIDL_APPDATA)
-        {
-            strcpy(pszPath, getenv("APPDATA"));
-        }
+        return string(getenv("USERPROFILE")) + "\\Start Menu\\Programs\\Startup";
     }
-
-    return pszPath;
+    else if (nFolder == CSIDL_APPDATA)
+    {
+        return getenv("APPDATA");
+    }
+    return "";
 }
 #endif
 
@@ -902,15 +874,28 @@ string GetConfigFile()
     return pathConfig.string();
 }
 
-void ReadConfigFile(map<string, string>& mapSettingsRet,
+bool ReadConfigFile(map<string, string>& mapSettingsRet,
                     map<string, vector<string> >& mapMultiSettingsRet)
 {
     namespace fs = boost::filesystem;
     namespace pod = boost::program_options::detail;
 
+    if (mapSettingsRet.count("-datadir"))
+    {
+        if (fs::is_directory(fs::system_complete(mapSettingsRet["-datadir"])))
+        {
+            fs::path pathDataDir = fs::system_complete(mapSettingsRet["-datadir"]);
+            strlcpy(pszSetDataDir, pathDataDir.string().c_str(), sizeof(pszSetDataDir));
+        }
+        else
+        {
+            return false;
+        }
+    }
+
     fs::ifstream streamConfig(GetConfigFile());
     if (!streamConfig.good())
-        return;
+        return true; // No bitcoin.conf file is OK
 
     set<string> setOptions;
     setOptions.insert("*");
@@ -920,9 +905,14 @@ void ReadConfigFile(map<string, string>& mapSettingsRet,
         // Don't overwrite existing settings so command line settings override bitcoin.conf
         string strKey = string("-") + it->string_key;
         if (mapSettingsRet.count(strKey) == 0)
+        {
             mapSettingsRet[strKey] = it->value[0];
+            //  interpret nofoo=1 as foo=0 (and nofoo=0 as foo=1) as long as foo not set)
+            InterpretNegativeSetting(strKey, mapSettingsRet);
+        }
         mapMultiSettingsRet[strKey].push_back(it->value[0]);
     }
+    return true;
 }
 
 string GetPidFile()
