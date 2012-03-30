@@ -7,7 +7,7 @@ Build-Depends: @cdbs@
 Standards-Version: 3.9.3
 Homepage: http://www.bitcoin.org/
 Vcs-Git: git://git.debian.org/git/collab-maint/bitcoin
-Vcs-Browser: http://git.debian.org/?p=collab-maint/bitcoin.git
+Vcs-Browser: http://anonscm.debian.org/gitweb/?p=collab-maint/bitcoin.git
 
 Package: bitcoind
 Architecture: any
