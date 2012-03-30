@@ -1,4 +1,4 @@
-Format: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?rev=174
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: FIXME
 Upstream-Contact: FIXME
 Source: FIXME
@@ -177,6 +177,9 @@ Files: INSTALL
  src/qt/sendcoinsdialog.h
  src/qt/sendcoinsentry.cpp
  src/qt/sendcoinsentry.h
+ src/qt/test/test_main.cpp
+ src/qt/test/urltests.cpp
+ src/qt/test/urltests.h
  src/qt/transactiondesc.cpp
  src/qt/transactiondesc.h
  src/qt/transactiondescdialog.cpp
@@ -199,6 +202,7 @@ Files: INSTALL
  src/test/getarg_tests.cpp
  src/test/key_tests.cpp
  src/test/miner_tests.cpp
+ src/test/mruset_tests.cpp
  src/test/multisig_tests.cpp
  src/test/rpc_tests.cpp
  src/test/script_P2SH_tests.cpp
@@ -244,8 +248,8 @@ Files: src/bignum.h
  src/wallet.cpp
  src/wallet.h
 Copyright: 2009-2010, Satoshi Nakamoto
- 2009-2012, The Bitcoin developers
- 2010, Satoshi Nakamoto
+  2009-2012, The Bitcoin developers
+  2010, Satoshi Nakamoto
 License: MIT/X11 (BSD like)
  FIXME
 
@@ -256,23 +260,28 @@ Files: doc/README
  doc/build-unix.txt
  src/makefile.osx
  src/qt/forms/aboutdialog.ui
+ src/qt/locale/bitcoin_ca_ES.ts
  src/qt/locale/bitcoin_da.ts
  src/qt/locale/bitcoin_en.ts
  src/qt/locale/bitcoin_es.ts
  src/qt/locale/bitcoin_es_CL.ts
+ src/qt/locale/bitcoin_et.ts
+ src/qt/locale/bitcoin_eu_ES.ts
+ src/qt/locale/bitcoin_fa_IR.ts
+ src/qt/locale/bitcoin_fi.ts
  src/qt/locale/bitcoin_hr.ts
  src/qt/locale/bitcoin_hu.ts
  src/qt/locale/bitcoin_it.ts
- src/qt/locale/bitcoin_nb.ts
+ src/qt/locale/bitcoin_lt.ts
  src/qt/locale/bitcoin_pl.ts
  src/qt/locale/bitcoin_pt_BR.ts
  src/qt/locale/bitcoin_ro_RO.ts
+ src/qt/locale/bitcoin_sr.ts
+ src/qt/locale/bitcoin_sv.ts
  src/qt/locale/bitcoin_zh_TW.ts
  src/rpcdump.cpp
-Copyright: 2009-2010, Bitcoin Developers
- 2009-2011, Bitcoin Developers
- 2009-2012, Bitcoin Developers
- 2011, Bitcoin Developers
+Copyright: 2009-2012, Bitcoin Developers
+  2011, Bitcoin Developers
 License: MIT/X11 (BSD like)
  FIXME
 
@@ -295,10 +304,12 @@ Files: contrib/pyminer/pyminer.py
  src/checkpoints.cpp
  src/checkpoints.h
  src/key.cpp
+ src/mruset.h
  src/netbase.h
  src/qt/qtipcserver.cpp
 Copyright: 2009-2012, The Bitcoin developers
- 2011, The Bitcoin developers
+  2011, The Bitcoin developers
+  2012, The Bitcoin developers
 License: MIT/X11 (BSD like)
  FIXME
 
@@ -307,7 +318,7 @@ Files: src/makefile.linux-mingw
  src/makefile.unix
  src/qtui.h
 Copyright: 2009-2010, Satoshi Nakamoto
- 2010, Satoshi Nakamoto
+  2010, Satoshi Nakamoto
 License: MIT/X11 (BSD like)
  FIXME
 
@@ -325,6 +336,12 @@ Copyright: *No copyright*
 License: GPL
  FIXME
 
+Files: src/addrman.cpp
+ src/addrman.h
+Copyright: 2012, Pieter Wuille
+License: MIT/X11 (BSD like)
+ FIXME
+
 Files: src/crypter.cpp
  src/crypter.h
 Copyright: 2009-2012, The Bitcoin Developers
@@ -338,26 +355,26 @@ License: GPL-2+
 
 Files: contrib/macdeploy/LICENSE
 Copyright: 2007, Free Software Foundation, Inc. <http://fsf.org/>
- <year> <name of author>
- HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
- are not
- disclaimer" for the program, if necessary
- holder as a result of your choosing to follow a
- holder explicitly and
- holder is
- holder is reinstated (a)
- holder notifies you of the
- holder who authorizes use under this
- holder, and you cure the violation prior to 30 days after
- holders of
- if you do
- law
- law, except executing it on a
- on the Program, and are irrevocable provided the stated
- on the software, and (2) offer you this License
- permission
- permission, other than the making of an
- treaty adopted on 20 December 1996, or
+  <year> <name of author>
+  HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
+  are not
+  disclaimer" for the program, if necessary
+  holder as a result of your choosing to follow a
+  holder explicitly and
+  holder is
+  holder is reinstated (a)
+  holder notifies you of the
+  holder who authorizes use under this
+  holder, and you cure the violation prior to 30 days after
+  holders of
+  if you do
+  law
+  law, except executing it on a
+  on the Program, and are irrevocable provided the stated
+  on the software, and (2) offer you this License
+  permission
+  permission, other than the making of an
+  treaty adopted on 20 December 1996, or
 License: GPL-3+
  FIXME
 
@@ -371,159 +388,207 @@ Copyright: 1998, Todd C. Miller <Todd.Miller@courtesan.com>
 License: ISC
  FIXME
 
+Files: src/qt/locale/bitcoin_zh_CN.ts
+Copyright: 2009-2012,
+  2009-2012, Bitcoin Developers
+License: MIT/X11 (BSD like)
+ FIXME
+
 Files: src/qt/locale/bitcoin_fa.ts
-Copyright: %d ارتباط %d</translation>
- %n باز شده برای</numerusform>
- )%s%d</translation>
- 1%1 </translation>
- 2% و بیشتر%2</translation>
- 2009-2011, Bitcoin Developers
- 2009-2012, Bitcoin Developers
- OpenSSL Toolkit (http://www.openssl.org/) برای استفاده در OpenSSL این عبارتند از نرمافزار
- از دیگر گره ها در یافت نشده بدین دلیل شاید قابل قابول نیست</translation>
- باز �ردن بندر بیت�ویین در روتر . این فقط در مواردی می باشد �ه روتر با �م� یو پ ن پ �ار می �ند</translation>
- باشند. هنگامی �ه بلون ایجاد می شود به شب�ه ارسال می شود تا در زنجیر بلو�ها اضافه شود. و گر نه بلو� به غیر قابول و غیر ارسال عوض می شود. این اتفاقی می افتد وقتی �ه همزمان گره دیگر در بلو� ایجاد می شود.</translation>
- باشند. هنگامی �ه بلون ایجاد می شود به شب�ه ارسال می شود تا در زنجیر بلو�ها اضافه شود. و گر نه بلو� به غیر قابول و غیر ارسال عوض می شود. این اتفاقی می افتد وقتی �ه همزمان گره دیگر در بلو� ایجاد می شود</translation>
- برای فرمان </translation>
- حق چاپ 2011-2009,
- خواهد �ردو آیا شما می خواهید این پول پر داخت %s�نید؟</translation>
- خواهد �ردو آیا شما می خواهید این پول پر داخت%1</translation>
- در حال پیشرفت</translation>
- در یافت شده تولید شده بود %1 </translation>
- عملیات ارسال فقط می‌توان ی� بار به هر نشانی ارسال �رد</translation>
- معاملات</translation>
- های در صد%d</translation>
- پایین است </translation>
- �نید. اگر ساعت درست نیست بیت�ویین مناسب نخواهد �ار �رد</translation>
- �نید</translation>
- �یلو بیت می باشد و 0.01 دستمزد پیشنهاد می شود</translation>
- یانگ </translation>
- یانگ {2009-2012, ?} {11 ?}</translation>
+Copyright: %n باز شده برای</numerusform></translation>
+  1%1 </translation>
+  2% و بیشتر%2</translation>
+  2009-2012, Bitcoin Developers
+  2012-2009, Bitcoin Developers
+  از دیگر گره ها در یافت نشده بدین دلیل شاید قابل قابول نیست</translation>
+  باز �ردن بندر بیت�ویین در روتر . این فقط در مواردی می باشد �ه روتر با �م� یو پ ن پ �ار می �ند</translation>
+  باشند. هنگامی �ه بلون ایجاد می شود به شب�ه ارسال می شود تا در زنجیر بلو�ها اضافه شود. و گر نه بلو� به غیر قابول و غیر ارسال عوض می شود. این اتفاقی می افتد وقتی �ه همزمان گره دیگر در بلو� ایجاد می شود.</translation>
+  برای فرمان </translation>
+  خواهد �ردو آیا شما می خواهید این پول پر داخت%1</translation>
+  در حال پیشرفت</translation>
+  در یافت شده تولید شده بود %1 </translation>
+  عملیات ارسال فقط می‌توان ی� بار به هر نشانی ارسال �رد</translation>
+  معاملات</translation>
+  می‌�ند اطمینان پیدا �نید �ه ترا�نش‌ها به سرعت پردازش می‌شوند. بیشتر ترا�نش‌ها ۱ �یلوبایت هستند. نرخ 0.01 پیشنهاد می‌شود.</translation>
+  نشانی معتبر نیست.</translation>
+  نشانی �نترل دارید</translation>
+  پایین است </translation>
+  پیام را امضا �نید تا ثابت �نید صاحب این نشانی هستید</translation>
+  �ردن تمام ستون‌های ترا�نش</translation>
+  �نید تا امضا را دریافت نمایید</translation>
+  �نید. اگر ساعت درست نیست بیت�ویین مناسب نخواهد �ار �رد</translation>
+  �نید</translation>
+  یانگ (eay@cryptsoft.com) و نرم‌افزار UPnP نوشته شده توسط توماس برنارد تش�یل شده است.</translation>
+License: MIT/X11 (BSD like)
+ FIXME
+
+Files: src/qt/locale/bitcoin_sk.ts
+Copyright: %1 transakčn� poplatky</translation>
+  &amp;poplatky</translation>
+  (%1 potvrdení)</translation>
+  (%1 z %2 potvrdení)</translation>
+  100)</translation>
+  125)</translation>
+  127.0.0.1)</translation>
+  2009-2012, Bitcoin Developers
+  8332)</translation>
+  8333, alebo testovacia sieť: 18333)</translation>
+  </translation>
+  a nov� heslo k peňaženke.</translation>
+  ale neakceptovan�</translation>
+  bitcoin.conf)</translation>
+  bitcoind.pid)</translation>
+  dáta</translation>
+  ešte neboli potvrden� a nezapočítavaju sa do celkov�ho zostatku.</translation>
+  heslo k peňaženke.&lt;br/&gt;Prosím použite heslo s dĺžkou aspon &lt;b&gt;10 alebo viac náhodných znakov&lt;/b&gt;, alebo &lt;b&gt;8 alebo viac slov&lt;/b&gt;.</translation>
+  heslo pre dešifrovanie peňaženky bolo nesprávne.</translation>
+  heslo</translation>
+  heslá nesúhlasia.</translation>
+  meno pre JSON-RPC spojenia</translation>
+  na šifrovanie peňaženky</translation>
+  na</translation>
+  načítavanie</translation>
+  od:</translation>
+  poslať na každú adresu len raz v jednej odchádzajúcej transakcii.</translation>
+  prepísať peňaženku: dokončite reštartovaním Bitcoin</translation>
+  s</translation>
+  server.cert)</translation>
+  server.pem)</translation>
+  transakcie</translation>
+  veľmi vysoko. Toto sú transakčn� poplatky ktor� zaplatíte ak odošlete transakciu.</translation>
+  šifry (predvolen�: TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!AH:!3DES:@STRENGTH)</translation>
 License: MIT/X11 (BSD like)
  FIXME
 
 Files: src/qt/locale/bitcoin_fr_FR.ts
-Copyright: (%s sera consid�r� comme mûr suite à %d blocs de plus)</translation>
- (par ex. 1NS17iag9jJgTHD1VXjvLCEnZuQ3rJDE9L)</translation>
- (pas accept�)</translation>
- - Attention : ce bloc n&apos;a �t� reçu par aucun autre nœud et ne sera probablement pas accept� !</translation>
- 2009-2011, Bitcoin Developers
- 2009-2011, D�veloppeurs de Bitcoin
- 2009-2012, Bitcoin Developers
- :</translation>
- </translation>
- accept�</translation>
- annul� </translation>
- annul�e</translation>
- au ou enlev� du solde.</translation>
- ce bloc, il a �t� diffus� sur le r�seau pour être ajout� à la chaîne des blocs. S&apos;il �choue a int�grer la chaîne, il sera modifi� en « pas accept� » et il ne sera pas possible de le d�penser. Cela peut arriver occasionnellement si un autre nœud g�nère un bloc quelques secondes avant ou après vous.</translation>
- chiffr�
- comme mûr suite à %d blocs de plus)</translation>
- d&apos;affichage des montants : </translation>
- diffus�e avec succès</translation>
- en raison d&apos;une erreur interne. Votre porte-monnaie n&apos;a pas �t� chiffr�.</translation>
- envoy�, mais le destinataire est dans l&apos;incapacit� de la v�rifier
- envoy�, mais une r�ponse invalide fut reçue</translation>
- est activ�e.</translation>
- et va se terminer. </translation>
- g�n�r� %1.</translation>
- mais pas accept�</translation>
- modifi�e avec succès.</translation>
- modifi�e.</translation>
- par d�faut pour l&apos;affichage dans l&apos;interface et lors de l&apos;envoi de pièces</translation>
- rejet�e. Cela peut arriver si certaines pièces de votre porte-monnaie ont d�jà �t� d�pens�es, par exemple si vous avez utilis� une copie de wallet.dat et si des pièces ont �t� d�pens�es avec cette copie sans être marqu�es comme telles ici.</translation>
- reçu par aucun autre nœud et ne sera probablement pas accept� !</translation>
- sous licence MIT/X11, voir le fichier license.txt ou http://www.opensource.org/licenses/mit-license.php
- à</translation>
+Copyright: (par d�faut : 100)</translation>
+  (par d�faut : 86400)</translation>
+  (par ex. 1NS17iag9jJgTHD1VXjvLCEnZuQ3rJDE9L)</translation>
+  2009-2012, Bitcoin Developers
+  2009-2012, D�veloppeurs de Bitcoin
+  :</translation>
+  au ou enlev� du solde.</translation>
+  ce bloc, il a �t� diffus� sur le r�seau pour être ajout� à la chaîne des blocs. S&apos;il �choue a int�grer la chaîne, il sera modifi� en « pas accept� » et il ne sera pas possible de le d�penser. Cela peut arriver occasionnellement si un autre nœud g�nère un bloc quelques secondes avant ou après vous.</translation>
+  d&apos;affichage des montants : </translation>
+  diffus�e avec succès</translation>
+  en raison d&apos;une erreur interne. Votre porte-monnaie n&apos;a pas �t� chiffr�.</translation>
+  est activ�e.</translation>
+  g�n�r� %1.</translation>
+  mais pas accept�</translation>
+  modifi�e avec succès.</translation>
+  par d�faut pour l&apos;affichage dans l&apos;interface et lors de l&apos;envoi de pièces</translation>
+  par votre signature. Ne signez que des d�clarations entièrement d�taill�es et avec lesquelles vous serez d&apos;accord.</translation>
+  rejet�e. Cela peut arriver si certaines pièces de votre porte-monnaie ont d�jà �t� d�pens�es, par exemple si vous avez utilis� une copie de wallet.dat et si des pièces ont �t� d�pens�es avec cette copie sans être marqu�es comme telles ici.</translation>
+  reçu par aucun autre nœud et ne sera probablement pas accept� !</translation>
+  sous licence MIT/X11, voir le fichier license.txt ou http://www.opensource.org/licenses/mit-license.php
+  à</translation>
+License: MIT/X11 (BSD like)
+ FIXME
+
+Files: src/qt/locale/bitcoin_he.ts
+Copyright: (ברירת מחדל: 86400)</translation>
+  2009-2012, Bitcoin Developers
+  2009-2012, �מורות למפתחי ביטקוין
+  </translation>
+  Caps Lock מופעל.</translation>
+  את �ר�רת הבלוקים למציאת פעולות חסרות בארנק</translation>
+  ב-DNS לאתחול ר�ימת עמיתים</translation>
+  ב-OpenSSL (https( עבור חיבורי JSON-RPC</translation>
+  ב-UPnP כדי למפות את הפורט להאזנה</translation>
+  בלבד לאחר מזעור החלון</translation>
+  במקום ל�ורת המ�ימות</translation>
+  בסיסמה המכילה &lt;b&gt;10 תוים אקראיים או יותר&lt;/b&gt;, או &lt;b&gt;�מונה מילים או יותר&lt;/b&gt;.</translation>
+  בערכת הכלים �ל OpenSSL (http://www.openssl.org/) ובתוכנה קריפטוגרפית �נכתבה על ידי אריק יאנג (eay@cryptsoft.com) ותוכנת UPnP �נכתבה על ידי תומס ברנרד.</translation>
+  בר�ת הבדיקה</translation>
+  גרסה חד�ה יותר �ל ביטקוין</translation>
+  לחיבורי JSON-RPC</translation>
+  לכתוב מחד� את הארנק: אתחל את ביטקוין לסיום</translation>
+  נכ�לה.</translation>
+  ת�לום</translation>
+  �ל מספר �ניות מהבלוק �לך.</translation>
+  �עבר</translation>
 License: MIT/X11 (BSD like)
  FIXME
 
 Files: src/qt/locale/bitcoin_de.ts
-Copyright: 2009-2011, Bitcoin Developers
- 2009-2011, Bitcoin Entwickler
- 2009-2012, Bitcoin Developers
-License: MIT/X11 (BSD like)
- FIXME
-
-Files: src/qt/locale/bitcoin_tr.ts
-Copyright: 2009-2011, Bitcoin Developers
- 2009-2011, Bitcoin geliştiricileri
- 2009-2012, Bitcoin Developers
+Copyright: 2009-2012, Bitcoin Developers
+  2009-2012, Bitcoin Entwickler
 License: MIT/X11 (BSD like)
  FIXME
 
 Files: src/qt/locale/bitcoin_nl.ts
-Copyright: 2009-2011, Bitcoin Developers
- 2009-2011, Bitcoin-ontwikkelaars
- 2009-2012, Bitcoin Developers
+Copyright: 2009-2012, Bitcoin Developers
+  2009-2012, Bitcoin Ontwikkelaars
 License: MIT/X11 (BSD like)
  FIXME
 
-Files: src/qt/locale/bitcoin_fi.ts
-Copyright: 2009-2011, Bitcoin Developers
- 2009-2011, Bitcoinin kehittäjät
- 2009-2012, Bitcoin Developers
+Files: src/qt/locale/bitcoin_nb.ts
+Copyright: 2009-2012, Bitcoin Developers
+  2009-2012, Bitcoin Utviklerne
 License: MIT/X11 (BSD like)
  FIXME
 
-Files: src/qt/locale/bitcoin_sv.ts
-Copyright: 2009-2011, Bitcoin Developers
- 2009-2011, Bitcoins Utvecklare
- 2009-2012, Bitcoin Developers
+Files: src/qt/locale/bitcoin_tr.ts
+Copyright: 2009-2012, Bitcoin Developers
+  2009-2012, Bitcoin geliştiricileri
+License: MIT/X11 (BSD like)
+ FIXME
+
+Files: src/qt/locale/bitcoin_cs.ts
+Copyright: 2009-2012, Bitcoin Developers
+  2009-2012, Vývojáři Bitcoinu
+  Bitcoinov� adresy pro příjem plateb. Můžeš pokažd� dát každ�mu odesílateli jinou adresu, abys věděl, kdo ti kdy kolik platil.</translation>
+  IP adresy</translation>
+  OpenSSL Projektem pro použití v OpenSSL Toolkitu (http://www.openssl.org/) a kryptografický program od Erika Younga (eay@cryptsoft.com) a program UPnP od Thomase Bernarda.</translation>
+  a nov� heslo k peněžence.</translation>
+  heslo k peněžence.&lt;br/&gt;Použij &lt;b&gt;alespoň 10 náhodných znaků&lt;/b&gt; nebo &lt;b&gt;alespoň osm slov&lt;/b&gt;.</translation>
+  heslo pro dešifrování peněženky.</translation>
+  heslo</translation>
+  ještě nejsou potvrzen� a kter� se ještě nezapočítávají do celkov�ho stavu účtu</translation>
+  jm�no pro JSON-RPC spojení</translation>
+  mince budou použiteln� po jednom bloku</numerusform><numerusform>Vytěžen� mince budou použiteln� po %n blocích</numerusform><numerusform>Vytěžen� mince budou použiteln� po %n blocích</numerusform></translation>
+  mince musí čekat 120 bloků, než mohou být utraceny. Když jsi vygeneroval tenhle blok, tak byl rozposlán do sítě, aby byl přidán do řetězce bloků. Pokud se mu nepodaří dostat se do řetězce, změní se na &quot;neakceptovaný&quot; a nepůjde utratit. Občas se to může stát, když jiný uzel vygeneruje blok zhruba ve stejn�m okamžiku jako ty.</translation>
+  mince z tv� peněženky už jednou byly utraceny, například pokud používáš kopii souboru wallet.dat a mince byly utraceny v druh� kopii, ale nebyly označeny jako utracen� v t�to.</translation>
+  místo se přihodila nějaká chyba.</translation>
+  místo</translation>
+  odeslan� transakci</translation>
+  platbě pouze jednou</translation>
+  pěněženky</translation>
+  razítko</translation>
+  s tímto záznamem v adresáři</translation>
+  schránky</translation>
+  spojení, &lt;n&gt;*1000, bytů (výchozí: 10000)</translation>
+  sítě přes SOCKS4 proxy (např. když se připojuje přes Tor)</translation>
+  sítě</numerusform><numerusform>%n aktivní spojení do Bitcoinov� sítě</numerusform><numerusform>%n aktivních spojení do Bitcoinov� sítě</numerusform></translation>
+  transakce</translation>
+  tvou transakci zpracují, a navíc tak podpoříš síť. Chceš zaplatit poplatek?</translation>
+  zašifrování peněženky úplně nezabraňuje krádeži tvých bitcoinů malwarem, kterým se může počítač nakazit.</translation>
+  řádky a přes JSON-RPC</translation>
+  šifry (výchozí: TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!AH:!3DES:@STRENGTH)</translation>
 License: MIT/X11 (BSD like)
  FIXME
 
 Files: COPYING
 Copyright: 2009-2012, Bitcoin Developers
- HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 License: MIT/X11 (BSD like)
  FIXME
 
-Files: src/qt/locale/bitcoin_cs_CZ.ts
-Copyright: 2009-2011, Bitcoin Developers
- 2009-2012, Bitcoin Developers
- a nov� heslo k peněžence.</translation>
- adresy do schránky</translation>
- adresy jednotlivým plátcům, a tak rozlišovat jejich platby.</translation>
- adresy ze seznamu. Mohou být odstraněny pouze odchozí adresy.</translation>
- heslo je příliš krátk�.</translation>
- heslo k peněžence
- heslo k peněžence.&lt;br/&gt;Použijte prosím heslo sestávající z&lt;b&gt;10 nebo více náhodných znaků&lt;/b&gt;, nebo z &lt;b&gt;osmi a více slov&lt;/b&gt;.</translation>
- heslo k peněžence.</translation>
- heslo k peněžence</translation>
- heslo pro dešifrování peněženky nebylo správn�.</translation>
- heslo, PŘIJDETE O VEŠKERÉ SVÉ BITCOINY!
- heslo</translation>
- k dešifrování peněženky nebylo správn�</translation>
- lišty namísto do hlavního panelu</translation>
- liště</translation>
- množství transakcí</translation>
- se mají zobrazovat v rozhraní a při odesílání mincí.</translation>
- transakce&lt;/b&gt;</translation>
- transakce</translation>
- z mincí ve Vaši peněžence již byly utraceny, např. pokud jste někde použili kopii souboru wallet.dat a mince utratili.</translation>
- zpracovávají Vaše transakce a pomáhají podporovat síť. Chcete zaplatit poplatek?</translation>
+Files: src/qt/locale/bitcoin_fr_CA.ts
+Copyright: 2009-2012, Bitcoin Developers
+  a votre presse-papier</translation>
 License: MIT/X11 (BSD like)
  FIXME
 
 Files: src/qt/locale/bitcoin_ru.ts
-Copyright: 2009-2011, Bitcoin Developers
- 2009-2011, Разработчики сети Bitcoin
- 2009-2012, Bitcoin Developers
+Copyright: 2009-2012, Bitcoin Developers
+  2009-2012, Разработчики Bitcoin
 License: MIT/X11 (BSD like)
  FIXME
 
 Files: src/qt/locale/bitcoin_uk.ts
-Copyright: 2009-2011, Bitcoin Developers
- 2009-2011, Розробники Bitcoin
- 2009-2012, Bitcoin Developers
-License: MIT/X11 (BSD like)
- FIXME
-
-Files: src/qt/locale/bitcoin_zh_CN.ts
-Copyright: 2009-2011, Bitcoin Developers
- 2009-2011, 比特币开发团队
- 2009-2012, Bitcoin Developers
+Copyright: 2009-2012, Bitcoin Developers
+  2009-2012, Розробники Bitcoin
 License: MIT/X11 (BSD like)
  FIXME
 
@@ -534,25 +599,25 @@ License: MIT/X11 (BSD like)
 
 Files: src/base58.h
 Copyright: 2009-2010, Satoshi Nakamoto
- 2009-2012, The Bitcoin Developers
+  2009-2012, The Bitcoin Developers
 License: MIT/X11 (BSD like)
  FIXME
 
 Files: contrib/debian/copyright
 Copyright: 1998, Todd C. Miller <Todd.Miller@courtesan.com>
- 2007-2009, John W. Wilkinson
- 2009-2011, Bitcoin Developers
- 2010-2011, Jonas Smedegaard <dr@jones.dk>
- Bitboy (optimized for 16x16 by Wladimir van der Laan)
- Crobbo (forum)
- David Vignoni (david@icon-king.com)
- Everaldo (Everaldo Coelho)
- HOLDERS BE LIABLE FOR ANY
- Micah Anderson <micah@debian.org>
- Wladimir van der Laan
- http://www.everaldo.com
- md2k7
- schollidesign
+  2007-2009, John W. Wilkinson
+  2009-2011, Bitcoin Developers
+  2010-2011, Jonas Smedegaard <dr@jones.dk>
+  Bitboy (optimized for 16x16 by Wladimir van der Laan)
+  Crobbo (forum)
+  David Vignoni (david@icon-king.com)
+  Everaldo (Everaldo Coelho)
+  HOLDERS BE LIABLE FOR ANY
+  Micah Anderson <micah@debian.org>
+  Wladimir van der Laan
+  http://www.everaldo.com
+  md2k7
+  schollidesign
 License: Public domain
  FIXME
 
@@ -573,13 +638,13 @@ License: UNKNOWN
 
 Files: contrib/debian/changelog
 Copyright: file files excluded from repackaged source
- file using draft svn166 of DEP5 format
- file:
- file: Drop notes on longer included sources
- format to Subversion candidate draft 162 of DEP5
- holder for manpages, licensed as GPL-3+
- listing
- years in rules file header
+  file using draft svn166 of DEP5 format
+  file:
+  file: Drop notes on longer included sources
+  format to Subversion candidate draft 162 of DEP5
+  holder for manpages, licensed as GPL-3+
+  listing
+  years in rules file header
 License: UNKNOWN
  FIXME
 

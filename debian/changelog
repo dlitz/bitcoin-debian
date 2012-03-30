@@ -1,10 +1,16 @@
-bitcoin (0.6.0~rc1-1) experimental; urgency=low
+bitcoin (0.6.0-1) unstable; urgency=low
 
-  * New upstream prerelease.
-  * Update copyright file: Extend copyright years.
+  * New upstream release.
+  * Update copyright file:
+    + Extend copyright years.
+    + Add Files paragraph for new Stochastic address manager.
+    + Bump format to 1.0.
+    + Shorten comments, and quote license strings in them.
   * Stop setting HOME during regression tests: Fixed upstream.
+  * Bump standards-version to 3.9.3.
+  * Update Vcs-Browser field to use anonscm.debian.org URL.
 
- -- Jonas Smedegaard <dr@jones.dk>  Tue, 21 Feb 2012 18:17:16 +0100
+ -- Jonas Smedegaard <dr@jones.dk>  Fri, 30 Mar 2012 20:00:48 +0200
 
 bitcoin (0.5.2-1) unstable; urgency=low
 
