@@ -19,8 +19,9 @@ inline int Testuint256AdHoc(std::vector<std::string> vArg);
 
 
 
-// We have to keep a separate base class without constructors
-// so the compiler will let us use it in a union
+/** Base class without constructors for uint256 and uint160.
+ * This makes the compiler let u use it in a union.
+ */
 template<unsigned int BITS>
 class base_uint
 {
@@ -89,13 +90,6 @@ public:
     {
         pn[0] ^= (unsigned int)b;
         pn[1] ^= (unsigned int)(b >> 32);
-        return *this;
-    }
-
-    base_uint& operator&=(uint64 b)
-    {
-        pn[0] &= (unsigned int)b;
-        pn[1] &= (unsigned int)(b >> 32);
         return *this;
     }
 
@@ -355,6 +349,10 @@ public:
         return sizeof(pn);
     }
 
+    uint64 Get64(int n=0) const
+    {
+        return pn[2*n] | (uint64)pn[2*n+1] << 32;
+    }
 
     unsigned int GetSerializeSize(int nType=0, int nVersion=PROTOCOL_VERSION) const
     {
@@ -396,6 +394,7 @@ typedef base_uint<256> base_uint256;
 // uint160
 //
 
+/** 160-bit unsigned integer */
 class uint160 : public base_uint160
 {
 public:
@@ -510,6 +509,7 @@ inline const uint160 operator-(const uint160& a, const uint160& b)      { return
 // uint256
 //
 
+/** 256-bit unsigned integer */
 class uint256 : public base_uint256
 {
 public:
