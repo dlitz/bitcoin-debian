@@ -41,6 +41,7 @@ Files: INSTALL
  contrib/gitian-downloader/gavinandresen-key.pgp
  contrib/gitian-downloader/laanwj-key.pgp
  contrib/gitian-downloader/linux-download-config
+ contrib/gitian-downloader/luke-jr-key.pgp
  contrib/gitian-downloader/tcatm-key.pgp
  contrib/gitian-downloader/win32-download-config
  contrib/macdeploy/background.png
@@ -77,10 +78,7 @@ Files: INSTALL
  doc/readme-qt.rst
  doc/release-process.txt
  doc/translation_process.md
- scripts/qt/extract_strings_qt.py
- scripts/qt/img/reload.xcf
- scripts/qt/make_spinner.py
- scripts/qt/make_windows_icon.py
+ share/genbuild.sh
  share/pixmaps/addressbook16.bmp
  share/pixmaps/addressbook16mask.bmp
  share/pixmaps/addressbook20.bmp
@@ -97,11 +95,13 @@ Files: INSTALL
  share/pixmaps/send16masknoshadow.bmp
  share/pixmaps/send20.bmp
  share/pixmaps/send20mask.bmp
+ share/qt/extract_strings_qt.py
+ share/qt/img/reload.xcf
+ share/qt/make_spinner.py
+ share/qt/make_windows_icon.sh
  share/ui.rc
  src/obj-test/.gitignore
  src/obj/.gitignore
- src/obj/nogui/.gitignore
- src/obj/test/.gitignore
  src/qt/aboutdialog.cpp
  src/qt/aboutdialog.h
  src/qt/addressbookpage.cpp
@@ -178,8 +178,8 @@ Files: INSTALL
  src/qt/sendcoinsentry.cpp
  src/qt/sendcoinsentry.h
  src/qt/test/test_main.cpp
- src/qt/test/urltests.cpp
- src/qt/test/urltests.h
+ src/qt/test/uritests.cpp
+ src/qt/test/uritests.h
  src/qt/transactiondesc.cpp
  src/qt/transactiondesc.h
  src/qt/transactiondescdialog.cpp
@@ -199,6 +199,8 @@ Files: INSTALL
  src/test/README
  src/test/base58_tests.cpp
  src/test/base64_tests.cpp
+ src/test/data/script_invalid.json
+ src/test/data/script_valid.json
  src/test/getarg_tests.cpp
  src/test/key_tests.cpp
  src/test/miner_tests.cpp
@@ -217,13 +219,13 @@ Copyright: *No copyright*
 License: UNKNOWN
  FIXME
 
-Files: src/bignum.h
+Files: src/allocators.h
+ src/bignum.h
  src/bitcoinrpc.cpp
  src/bitcoinrpc.h
  src/compat.h
  src/db.cpp
  src/db.h
- src/headers.h
  src/init.cpp
  src/init.h
  src/irc.cpp
@@ -236,7 +238,7 @@ Files: src/bignum.h
  src/net.cpp
  src/net.h
  src/netbase.cpp
- src/noui.h
+ src/noui.cpp
  src/protocol.cpp
  src/protocol.h
  src/script.cpp
@@ -247,6 +249,8 @@ Files: src/bignum.h
  src/util.h
  src/wallet.cpp
  src/wallet.h
+ src/walletdb.cpp
+ src/walletdb.h
 Copyright: 2009-2010, Satoshi Nakamoto
   2009-2012, The Bitcoin developers
   2010, Satoshi Nakamoto
@@ -307,6 +311,8 @@ Files: contrib/pyminer/pyminer.py
  src/mruset.h
  src/netbase.h
  src/qt/qtipcserver.cpp
+ src/version.cpp
+ src/version.h
 Copyright: 2009-2012, The Bitcoin developers
   2011, The Bitcoin developers
   2012, The Bitcoin developers
@@ -316,7 +322,7 @@ License: MIT/X11 (BSD like)
 Files: src/makefile.linux-mingw
  src/makefile.mingw
  src/makefile.unix
- src/qtui.h
+ src/ui_interface.h
 Copyright: 2009-2010, Satoshi Nakamoto
   2010, Satoshi Nakamoto
 License: MIT/X11 (BSD like)
