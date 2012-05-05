@@ -7,28 +7,15 @@
 #include <string>
 #include <vector>
 
-#ifdef WIN32
-#define _WIN32_WINNT 0x0501
-#include <winsock2.h>
-#include <mswsock.h>
-#include <ws2tcpip.h>
-#else
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <net/if.h>
-#include <ifaddrs.h>
-#endif
-#ifdef BSD
-#include <netinet/in.h>
-#endif
-
 #include "serialize.h"
 #include "compat.h"
 
 extern int nConnectTimeout;
 
+#ifdef WIN32
+// In MSVC, this is defined as a macro, undefine it to prevent a compile and link error
+#undef SetPort
+#endif
 
 /** IP address (IPv6, or IPv4 using mapped IPv6 range (::FFFF:0:0/96)) */
 class CNetAddr
@@ -81,7 +68,7 @@ class CNetAddr
             )
 };
 
-/** A combnation of a network address (CNetAddr) and a (TCP) port */
+/** A combination of a network address (CNetAddr) and a (TCP) port */
 class CService : public CNetAddr
 {
     protected:
@@ -126,10 +113,10 @@ class CService : public CNetAddr
             )
 };
 
-bool LookupHost(const char *pszName, std::vector<CNetAddr>& vIP, int nMaxSolutions = 0, bool fAllowLookup = true);
-bool LookupHostNumeric(const char *pszName, std::vector<CNetAddr>& vIP, int nMaxSolutions = 0);
+bool LookupHost(const char *pszName, std::vector<CNetAddr>& vIP, unsigned int nMaxSolutions = 0, bool fAllowLookup = true);
+bool LookupHostNumeric(const char *pszName, std::vector<CNetAddr>& vIP, unsigned int nMaxSolutions = 0);
 bool Lookup(const char *pszName, CService& addr, int portDefault = 0, bool fAllowLookup = true);
-bool Lookup(const char *pszName, std::vector<CService>& vAddr, int portDefault = 0, bool fAllowLookup = true, int nMaxSolutions = 0);
+bool Lookup(const char *pszName, std::vector<CService>& vAddr, int portDefault = 0, bool fAllowLookup = true, unsigned int nMaxSolutions = 0);
 bool LookupNumeric(const char *pszName, CService& addr, int portDefault = 0);
 bool ConnectSocket(const CService &addr, SOCKET& hSocketRet, int nTimeout = nConnectTimeout);
 

@@ -3,10 +3,10 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
 
-#include "headers.h"
 #include "irc.h"
 #include "net.h"
 #include "strlcpy.h"
+#include "base58.h"
 
 using namespace std;
 using namespace boost;
@@ -108,13 +108,13 @@ int RecvUntil(SOCKET hSocket, const char* psz1, const char* psz2=NULL, const cha
         if (!RecvLineIRC(hSocket, strLine))
             return 0;
         printf("IRC %s\n", strLine.c_str());
-        if (psz1 && strLine.find(psz1) != -1)
+        if (psz1 && strLine.find(psz1) != string::npos)
             return 1;
-        if (psz2 && strLine.find(psz2) != -1)
+        if (psz2 && strLine.find(psz2) != string::npos)
             return 2;
-        if (psz3 && strLine.find(psz3) != -1)
+        if (psz3 && strLine.find(psz3) != string::npos)
             return 3;
-        if (psz4 && strLine.find(psz4) != -1)
+        if (psz4 && strLine.find(psz4) != string::npos)
             return 4;
     }
 }

@@ -12,7 +12,7 @@
 #include <openssl/ecdsa.h>
 #include <openssl/obj_mac.h>
 
-#include "serialize.h"
+#include "allocators.h"
 #include "uint256.h"
 
 // secp160k1
@@ -173,7 +173,7 @@ public:
 
     CPrivKey GetPrivKey() const
     {
-        unsigned int nSize = i2d_ECPrivateKey(pkey, NULL);
+        int nSize = i2d_ECPrivateKey(pkey, NULL);
         if (!nSize)
             throw key_error("CKey::GetPrivKey() : i2d_ECPrivateKey failed");
         CPrivKey vchPrivKey(nSize, 0);
@@ -196,7 +196,7 @@ public:
 
     std::vector<unsigned char> GetPubKey() const
     {
-        unsigned int nSize = i2o_ECPublicKey(pkey, NULL);
+        int nSize = i2o_ECPublicKey(pkey, NULL);
         if (!nSize)
             throw key_error("CKey::GetPubKey() : i2o_ECPublicKey failed");
         std::vector<unsigned char> vchPubKey(nSize, 0);

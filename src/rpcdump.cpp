@@ -2,19 +2,12 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
 
-#include "headers.h"
 #include "init.h" // for pwalletMain
 #include "bitcoinrpc.h"
+#include "ui_interface.h"
 
-// #include <boost/asio.hpp>
-// #include <boost/iostreams/concepts.hpp>
-// #include <boost/iostreams/stream.hpp>
 #include <boost/lexical_cast.hpp>
-// #ifdef USE_SSL
-// #include <boost/asio/ssl.hpp> 
-// typedef boost::asio::ssl::stream<boost::asio::ip::tcp::socket> SSLStream;
-// #endif
-// #include <boost/xpressive/xpressive_dynamic.hpp>
+
 #include "json/json_spirit_reader_template.h"
 #include "json/json_spirit_writer_template.h"
 #include "json/json_spirit_utils.h"
@@ -67,9 +60,9 @@ Value importprivkey(const Array& params, bool fHelp)
     key.SetSecret(secret, fCompressed);
     CBitcoinAddress vchAddress = CBitcoinAddress(key.GetPubKey());
 
-    CRITICAL_BLOCK(cs_main)
-    CRITICAL_BLOCK(pwalletMain->cs_wallet)
     {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+
         pwalletMain->MarkDirty();
         pwalletMain->SetAddressBookName(vchAddress, strLabel);
 

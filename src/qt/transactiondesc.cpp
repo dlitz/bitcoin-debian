@@ -1,10 +1,12 @@
-#include <transactiondesc.h>
+#include "transactiondesc.h"
 
 #include "guiutil.h"
 #include "bitcoinunits.h"
 
-#include "headers.h"
-#include "qtui.h"
+#include "main.h"
+#include "wallet.h"
+#include "db.h"
+#include "ui_interface.h"
 
 #include <QString>
 
@@ -34,8 +36,9 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
 QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx)
 {
     QString strHTML;
-    CRITICAL_BLOCK(wallet->cs_wallet)
+
     {
+        LOCK(wallet->cs_wallet);
         strHTML.reserve(4000);
         strHTML += "<html><font face='verdana, arial, helvetica, sans-serif'>";
 
@@ -243,8 +246,9 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx)
 
             strHTML += "<br><b>Inputs:</b>";
             strHTML += "<ul>";
-            CRITICAL_BLOCK(wallet->cs_wallet)
+
             {
+                LOCK(wallet->cs_wallet);
                 BOOST_FOREACH(const CTxIn& txin, wtx.vin)
                 {
                     COutPoint prevout = txin.prevout;

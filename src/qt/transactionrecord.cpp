@@ -1,6 +1,6 @@
 #include "transactionrecord.h"
 
-#include "headers.h"
+#include "wallet.h"
 
 /* Return positive answer if transaction should be shown in list.
  */
@@ -33,7 +33,7 @@ bool TransactionRecord::showTransaction(const CWalletTx &wtx)
 QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *wallet, const CWalletTx &wtx)
 {
     QList<TransactionRecord> parts;
-    int64 nTime = wtx.nTimeDisplayed = wtx.GetTxTime();
+    int64 nTime = wtx.GetTxTime();
     int64 nCredit = wtx.GetCredit(true);
     int64 nDebit = wtx.GetDebit();
     int64 nNet = nCredit - nDebit;
@@ -146,12 +146,6 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 //
                 // Mixed debit transaction, can't break down payees
                 //
-                bool fAllMine = true;
-                BOOST_FOREACH(const CTxOut& txout, wtx.vout)
-                    fAllMine = fAllMine && wallet->IsMine(txout);
-                BOOST_FOREACH(const CTxIn& txin, wtx.vin)
-                    fAllMine = fAllMine && wallet->IsMine(txin);
-
                 parts.append(TransactionRecord(hash, nTime, TransactionRecord::Other, "", nNet, 0));
             }
         }
