@@ -107,7 +107,7 @@ CInv::CInv(int typeIn, const uint256& hashIn)
 
 CInv::CInv(const std::string& strType, const uint256& hashIn)
 {
-    int i;
+    unsigned int i;
     for (i = 1; i < ARRAYLEN(ppszTypeName); i++)
     {
         if (strType == ppszTypeName[i])
@@ -128,7 +128,7 @@ bool operator<(const CInv& a, const CInv& b)
 
 bool CInv::IsKnownType() const
 {
-    return (type >= 1 && type < ARRAYLEN(ppszTypeName));
+    return (type >= 1 && type < (int)ARRAYLEN(ppszTypeName));
 }
 
 const char* CInv::GetCommand() const

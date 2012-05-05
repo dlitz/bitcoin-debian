@@ -3,8 +3,6 @@
 #include "walletmodel.h"
 #include "bitcoinunits.h"
 
-#include "headers.h"
-
 #include <QString>
 #include <QDateTime>
 #include <QDoubleValidator>
@@ -17,32 +15,35 @@
 #include <QClipboard>
 #include <QFileDialog>
 #include <QDesktopServices>
+#include <QThread>
 
-QString GUIUtil::dateTimeStr(qint64 nTime)
-{
-    return dateTimeStr(QDateTime::fromTime_t((qint32)nTime));
-}
+namespace GUIUtil {
 
-QString GUIUtil::dateTimeStr(const QDateTime &date)
+QString dateTimeStr(const QDateTime &date)
 {
     return date.date().toString(Qt::SystemLocaleShortDate) + QString(" ") + date.toString("hh:mm");
 }
 
-QFont GUIUtil::bitcoinAddressFont()
+QString dateTimeStr(qint64 nTime)
+{
+    return dateTimeStr(QDateTime::fromTime_t((qint32)nTime));
+}
+
+QFont bitcoinAddressFont()
 {
     QFont font("Monospace");
     font.setStyleHint(QFont::TypeWriter);
     return font;
 }
 
-void GUIUtil::setupAddressWidget(QLineEdit *widget, QWidget *parent)
+void setupAddressWidget(QLineEdit *widget, QWidget *parent)
 {
     widget->setMaxLength(BitcoinAddressValidator::MaxAddressLength);
     widget->setValidator(new BitcoinAddressValidator(parent));
     widget->setFont(bitcoinAddressFont());
 }
 
-void GUIUtil::setupAmountWidget(QLineEdit *widget, QWidget *parent)
+void setupAmountWidget(QLineEdit *widget, QWidget *parent)
 {
     QDoubleValidator *amountValidator = new QDoubleValidator(parent);
     amountValidator->setDecimals(8);
@@ -51,15 +52,15 @@ void GUIUtil::setupAmountWidget(QLineEdit *widget, QWidget *parent)
     widget->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
 }
 
-bool GUIUtil::parseBitcoinURL(const QUrl &url, SendCoinsRecipient *out)
+bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out)
 {
-    if(url.scheme() != QString("bitcoin"))
+    if(uri.scheme() != QString("bitcoin"))
         return false;
 
     SendCoinsRecipient rv;
-    rv.address = url.path();
+    rv.address = uri.path();
     rv.amount = 0;
-    QList<QPair<QString, QString> > items = url.queryItems();
+    QList<QPair<QString, QString> > items = uri.queryItems();
     for (QList<QPair<QString, QString> >::iterator i = items.begin(); i != items.end(); i++)
     {
         bool fShouldReturnFalse = false;
@@ -96,21 +97,21 @@ bool GUIUtil::parseBitcoinURL(const QUrl &url, SendCoinsRecipient *out)
     return true;
 }
 
-bool GUIUtil::parseBitcoinURL(QString url, SendCoinsRecipient *out)
+bool parseBitcoinURI(QString uri, SendCoinsRecipient *out)
 {
     // Convert bitcoin:// to bitcoin:
     //
     //    Cannot handle this later, because bitcoin:// will cause Qt to see the part after // as host,
     //    which will lowercase it (and thus invalidate the address).
-    if(url.startsWith("bitcoin://"))
+    if(uri.startsWith("bitcoin://"))
     {
-        url.replace(0, 10, "bitcoin:");
+        uri.replace(0, 10, "bitcoin:");
     }
-    QUrl urlInstance(url);
-    return parseBitcoinURL(urlInstance, out);
+    QUrl uriInstance(uri);
+    return parseBitcoinURI(uriInstance, out);
 }
 
-QString GUIUtil::HtmlEscape(const QString& str, bool fMultiLine)
+QString HtmlEscape(const QString& str, bool fMultiLine)
 {
     QString escaped = Qt::escape(str);
     if(fMultiLine)
@@ -120,12 +121,12 @@ QString GUIUtil::HtmlEscape(const QString& str, bool fMultiLine)
     return escaped;
 }
 
-QString GUIUtil::HtmlEscape(const std::string& str, bool fMultiLine)
+QString HtmlEscape(const std::string& str, bool fMultiLine)
 {
     return HtmlEscape(QString::fromStdString(str), fMultiLine);
 }
 
-void GUIUtil::copyEntryData(QAbstractItemView *view, int column, int role)
+void copyEntryData(QAbstractItemView *view, int column, int role)
 {
     if(!view || !view->selectionModel())
         return;
@@ -138,7 +139,7 @@ void GUIUtil::copyEntryData(QAbstractItemView *view, int column, int role)
     }
 }
 
-QString GUIUtil::getSaveFileName(QWidget *parent, const QString &caption,
+QString getSaveFileName(QWidget *parent, const QString &caption,
                                  const QString &dir,
                                  const QString &filter,
                                  QString *selectedSuffixOut)
@@ -183,4 +184,35 @@ QString GUIUtil::getSaveFileName(QWidget *parent, const QString &caption,
     }
     return result;
 }
+
+Qt::ConnectionType blockingGUIThreadConnection()
+{
+    if(QThread::currentThread() != QCoreApplication::instance()->thread())
+    {
+        return Qt::BlockingQueuedConnection;
+    }
+    else
+    {
+        return Qt::DirectConnection;
+    }
+}
+
+bool checkPoint(const QPoint &p, const QWidget *w)
+{
+  QWidget *atW = qApp->widgetAt(w->mapToGlobal(p));
+  if(!atW) return false;
+  return atW->topLevelWidget() == w;
+}
+
+bool isObscured(QWidget *w)
+{
+
+  return !(checkPoint(QPoint(0, 0), w)
+           && checkPoint(QPoint(w->width() - 1, 0), w)
+           && checkPoint(QPoint(0, w->height() - 1), w)
+           && checkPoint(QPoint(w->width() - 1, w->height() - 1), w)
+           && checkPoint(QPoint(w->width()/2, w->height()/2), w));
+}
+
+} // namespace GUIUtil
 

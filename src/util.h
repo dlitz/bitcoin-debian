@@ -11,23 +11,33 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#else
+typedef int pid_t; /* define for windows compatiblity */
 #endif
 #include <map>
 #include <vector>
 #include <string>
 
 #include <boost/thread.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/path.hpp>
 #include <boost/interprocess/sync/interprocess_recursive_mutex.hpp>
+#include <boost/interprocess/sync/scoped_lock.hpp>
+#include <boost/interprocess/sync/interprocess_condition.hpp>
+#include <boost/interprocess/sync/lock_options.hpp>
 #include <boost/date_time/gregorian/gregorian_types.hpp>
 #include <boost/date_time/posix_time/posix_time_types.hpp>
 
 #include <openssl/sha.h>
 #include <openssl/ripemd.h>
 
-#include "netbase.h"
+#include "netbase.h" // for AddTimeData
 
 typedef long long  int64;
 typedef unsigned long long  uint64;
+
+static const int64 COIN = 100000000;
+static const int64 CENT = 1000000;
 
 #define loop                for (;;)
 #define BEGIN(a)            ((char*)&(a))
@@ -93,13 +103,6 @@ inline void Sleep(int64 n)
 }
 #endif
 
-#if !defined(QT_GUI)
-inline const char* _(const char* psz)
-{
-    return psz;
-}
-#endif
-
 
 
 
@@ -113,7 +116,6 @@ extern std::map<std::string, std::vector<std::string> > mapMultiArgs;
 extern bool fDebug;
 extern bool fPrintToConsole;
 extern bool fPrintToDebugger;
-extern char pszSetDataDir[MAX_PATH];
 extern bool fRequestShutdown;
 extern bool fShutdown;
 extern bool fDaemon;
@@ -128,8 +130,15 @@ void RandAddSeed();
 void RandAddSeedPerfmon();
 int OutputDebugStringF(const char* pszFormat, ...);
 int my_snprintf(char* buffer, size_t limit, const char* format, ...);
-std::string strprintf(const std::string &format, ...);
-bool error(const std::string &format, ...);
+
+/* It is not allowed to use va_start with a pass-by-reference argument.
+   (C++ standard, 18.7, paragraph 3). Use a dummy argument to work around this, and use a
+   macro to keep similar semantics.
+*/
+std::string real_strprintf(const std::string &format, int dummy, ...);
+#define strprintf(format, ...) real_strprintf(format, 0, __VA_ARGS__)
+
+bool error(const char *format, ...);
 void LogException(std::exception* pex, const char* pszThread);
 void PrintException(std::exception* pex, const char* pszThread);
 void PrintExceptionContinue(std::exception* pex, const char* pszThread);
@@ -148,16 +157,14 @@ void ParseParameters(int argc, const char*const argv[]);
 bool WildcardMatch(const char* psz, const char* mask);
 bool WildcardMatch(const std::string& str, const std::string& mask);
 int GetFilesize(FILE* file);
-void GetDataDir(char* pszDirRet);
-std::string GetConfigFile();
-std::string GetPidFile();
-void CreatePidFile(std::string pidFile, pid_t pid);
-bool ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet, std::map<std::string, std::vector<std::string> >& mapMultiSettingsRet);
-#ifdef WIN32
-std::string MyGetSpecialFolderPath(int nFolder, bool fCreate);
-#endif
-std::string GetDefaultDataDir();
-std::string GetDataDir();
+boost::filesystem::path GetDefaultDataDir();
+const boost::filesystem::path &GetDataDir(bool fNetSpecific = true);
+boost::filesystem::path GetConfigFile();
+boost::filesystem::path GetPidFile();
+void CreatePidFile(const boost::filesystem::path &path, pid_t pid);
+void ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet, std::map<std::string, std::vector<std::string> >& mapMultiSettingsRet);
+bool GetStartOnSystemStartup();
+bool SetStartOnSystemStartup(bool fAutoStart);
 void ShrinkDebugFile();
 int GetRandInt(int nMax);
 uint64 GetRand(uint64 nMax);
@@ -178,94 +185,121 @@ void AddTimeData(const CNetAddr& ip, int64 nTime);
 
 
 
+/** Wrapped boost mutex: supports recursive locking, but no waiting  */
+typedef boost::interprocess::interprocess_recursive_mutex CCriticalSection;
 
-/** Wrapper to automatically initialize mutex. */
-class CCriticalSection
+/** Wrapped boost mutex: supports waiting but not recursive locking */
+typedef boost::interprocess::interprocess_mutex CWaitableCriticalSection;
+
+#ifdef DEBUG_LOCKORDER
+void EnterCritical(const char* pszName, const char* pszFile, int nLine, void* cs, bool fTry = false);
+void LeaveCritical();
+#else
+void static inline EnterCritical(const char* pszName, const char* pszFile, int nLine, void* cs, bool fTry = false) {}
+void static inline LeaveCritical() {}
+#endif
+
+/** Wrapper around boost::interprocess::scoped_lock */
+template<typename Mutex>
+class CMutexLock
 {
-protected:
-    boost::interprocess::interprocess_recursive_mutex mutex;
+private:
+    boost::interprocess::scoped_lock<Mutex> lock;
 public:
-    explicit CCriticalSection() { }
-    ~CCriticalSection() { }
-    void Enter(const char* pszName, const char* pszFile, int nLine);
-    void Leave();
-    bool TryEnter(const char* pszName, const char* pszFile, int nLine);
-};
 
-/** RAII object that acquires mutex. Needed for exception safety. */
-class CCriticalBlock
-{
-protected:
-    CCriticalSection* pcs;
-
-public:
-    CCriticalBlock(CCriticalSection& csIn, const char* pszName, const char* pszFile, int nLine)
+    void Enter(const char* pszName, const char* pszFile, int nLine)
     {
-        pcs = &csIn;
-        pcs->Enter(pszName, pszFile, nLine);
-    }
-
-    operator bool() const
-    {
-        return true;
-    }
-
-    ~CCriticalBlock()
-    {
-        pcs->Leave();
-    }
-};
-
-#define CRITICAL_BLOCK(cs)     \
-    if (CCriticalBlock criticalblock = CCriticalBlock(cs, #cs, __FILE__, __LINE__))
-
-#define ENTER_CRITICAL_SECTION(cs) \
-    (cs).Enter(#cs, __FILE__, __LINE__)
-
-#define LEAVE_CRITICAL_SECTION(cs) \
-    (cs).Leave()
-
-/** RAII object that tries to acquire mutex. Needed for exception safety. */
-class CTryCriticalBlock
-{
-protected:
-    CCriticalSection* pcs;
-
-public:
-    CTryCriticalBlock(CCriticalSection& csIn, const char* pszName, const char* pszFile, int nLine)
-    {
-        pcs = (csIn.TryEnter(pszName, pszFile, nLine) ? &csIn : NULL);
-    }
-
-    operator bool() const
-    {
-        return Entered();
-    }
-
-    ~CTryCriticalBlock()
-    {
-        if (pcs)
+        if (!lock.owns())
         {
-            pcs->Leave();
+            EnterCritical(pszName, pszFile, nLine, (void*)(lock.mutex()));
+#ifdef DEBUG_LOCKCONTENTION
+            if (!lock.try_lock())
+            {
+                printf("LOCKCONTENTION: %s\n", pszName);
+                printf("Locker: %s:%d\n", pszFile, nLine);
+            }
+#endif
+            lock.lock();
         }
     }
-    bool Entered() const { return pcs != NULL; }
+
+    void Leave()
+    {
+        if (lock.owns())
+        {
+            lock.unlock();
+            LeaveCritical();
+        }
+    }
+
+    bool TryEnter(const char* pszName, const char* pszFile, int nLine)
+    {
+        if (!lock.owns())
+        {
+            EnterCritical(pszName, pszFile, nLine, (void*)(lock.mutex()), true);
+            lock.try_lock();
+            if (!lock.owns())
+                LeaveCritical();
+        }
+        return lock.owns();
+    }
+
+    CMutexLock(Mutex& mutexIn, const char* pszName, const char* pszFile, int nLine, bool fTry = false) : lock(mutexIn, boost::interprocess::defer_lock)
+    {
+        if (fTry)
+            TryEnter(pszName, pszFile, nLine);
+        else
+            Enter(pszName, pszFile, nLine);
+    }
+
+    ~CMutexLock()
+    {
+        if (lock.owns())
+            LeaveCritical();
+    }
+
+    operator bool()
+    {
+        return lock.owns();
+    }
+
+    boost::interprocess::scoped_lock<Mutex> &GetLock()
+    {
+        return lock;
+    }
 };
 
-#define TRY_CRITICAL_BLOCK(cs)     \
-    if (CTryCriticalBlock criticalblock = CTryCriticalBlock(cs, #cs, __FILE__, __LINE__))
+typedef CMutexLock<CCriticalSection> CCriticalBlock;
+typedef CMutexLock<CWaitableCriticalSection> CWaitableCriticalBlock;
+typedef boost::interprocess::interprocess_condition CConditionVariable;
 
+/** Wait for a given condition inside a WAITABLE_CRITICAL_BLOCK */
+#define WAIT(name,condition) \
+   do { while(!(condition)) { (name).wait(waitablecriticalblock.GetLock()); } } while(0)
 
+/** Notify waiting threads that a condition may hold now */
+#define NOTIFY(name) \
+   do { (name).notify_one(); } while(0)
 
+#define NOTIFY_ALL(name) \
+   do { (name).notify_all(); } while(0)
 
+#define LOCK(cs) CCriticalBlock criticalblock(cs, #cs, __FILE__, __LINE__)
+#define LOCK2(cs1,cs2) CCriticalBlock criticalblock1(cs1, #cs1, __FILE__, __LINE__),criticalblock2(cs2, #cs2, __FILE__, __LINE__)
+#define TRY_LOCK(cs,name) CCriticalBlock name(cs, #cs, __FILE__, __LINE__, true)
+#define WAITABLE_LOCK(cs) CWaitableCriticalBlock waitablecriticalblock(cs, #cs, __FILE__, __LINE__)
 
+#define ENTER_CRITICAL_SECTION(cs) \
+    { \
+        EnterCritical(#cs, __FILE__, __LINE__, (void*)(&cs)); \
+        (cs).lock(); \
+    }
 
-// This is exactly like std::string, but with a custom allocator.
-// (secure_allocator<> is defined in serialize.h)
-typedef std::basic_string<char, std::char_traits<char>, secure_allocator<char> > SecureString;
-
-
-
+#define LEAVE_CRITICAL_SECTION(cs) \
+    { \
+        (cs).unlock(); \
+        LeaveCritical(); \
+    }
 
 
 inline std::string i64tostr(int64 n)
@@ -319,15 +353,20 @@ inline int64 abs64(int64 n)
 template<typename T>
 std::string HexStr(const T itbegin, const T itend, bool fSpaces=false)
 {
-    if (itbegin == itend)
-        return "";
-    const unsigned char* pbegin = (const unsigned char*)&itbegin[0];
-    const unsigned char* pend = pbegin + (itend - itbegin) * sizeof(itbegin[0]);
-    std::string str;
-    str.reserve((pend-pbegin) * (fSpaces ? 3 : 2));
-    for (const unsigned char* p = pbegin; p != pend; p++)
-        str += strprintf((fSpaces && p != pend-1 ? "%02x " : "%02x"), *p);
-    return str;
+    std::vector<char> rv;
+    static char hexmap[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
+                               '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+    rv.reserve((itend-itbegin)*3);
+    for(T it = itbegin; it < itend; ++it)
+    {
+        unsigned char val = (unsigned char)(*it);
+        if(fSpaces && it != itbegin)
+            rv.push_back(' ');
+        rv.push_back(hexmap[val>>4]);
+        rv.push_back(hexmap[val&15]);
+    }
+
+    return std::string(rv.begin(), rv.end());
 }
 
 inline std::string HexStr(const std::vector<unsigned char>& vch, bool fSpaces=false)
@@ -532,9 +571,9 @@ template <typename T> class CMedianFilter
 private:
     std::vector<T> vValues;
     std::vector<T> vSorted;
-    int nSize;
+    unsigned int nSize;
 public:
-    CMedianFilter(int size, T initial_value):
+    CMedianFilter(unsigned int size, T initial_value):
         nSize(size)
     {
         vValues.reserve(size);
@@ -665,26 +704,6 @@ inline void ExitThread(size_t nExitCode)
 
 
 
-
-inline bool AffinityBugWorkaround(void(*pfn)(void*))
-{
-#ifdef WIN32
-    // Sometimes after a few hours affinity gets stuck on one processor
-    DWORD_PTR dwProcessAffinityMask = -1;
-    DWORD_PTR dwSystemAffinityMask = -1;
-    GetProcessAffinityMask(GetCurrentProcess(), &dwProcessAffinityMask, &dwSystemAffinityMask);
-    DWORD dwPrev1 = SetThreadAffinityMask(GetCurrentThread(), dwProcessAffinityMask);
-    DWORD dwPrev2 = SetThreadAffinityMask(GetCurrentThread(), dwProcessAffinityMask);
-    if (dwPrev2 != dwProcessAffinityMask)
-    {
-        printf("AffinityBugWorkaround() : SetThreadAffinityMask=%d, ProcessAffinityMask=%d, restarting thread\n", dwPrev2, dwProcessAffinityMask);
-        if (!CreateThread(pfn, NULL))
-            printf("Error: CreateThread() failed\n");
-        return true;
-    }
-#endif
-    return false;
-}
 
 inline uint32_t ByteReverse(uint32_t value)
 {

@@ -2,26 +2,20 @@
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
-#include "headers.h"
 #include "db.h"
+#include "walletdb.h"
 #include "bitcoinrpc.h"
 #include "net.h"
 #include "init.h"
-#include "strlcpy.h"
+#include "util.h"
+#include "ui_interface.h"
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/filesystem/convenience.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>
 
-#if defined(BITCOIN_NEED_QT_PLUGINS) && !defined(_BITCOIN_QT_PLUGINS_INCLUDED)
-#define _BITCOIN_QT_PLUGINS_INCLUDED
-#define __INSURE__
-#include <QtPlugin>
-Q_IMPORT_PLUGIN(qcncodecs)
-Q_IMPORT_PLUGIN(qjpcodecs)
-Q_IMPORT_PLUGIN(qtwcodecs)
-Q_IMPORT_PLUGIN(qkrcodecs)
-Q_IMPORT_PLUGIN(qtaccessiblewidgets)
+#ifndef WIN32
+#include <signal.h>
 #endif
 
 using namespace std;
@@ -47,10 +41,13 @@ void Shutdown(void* parg)
     static CCriticalSection cs_Shutdown;
     static bool fTaken;
     bool fFirstThread = false;
-    TRY_CRITICAL_BLOCK(cs_Shutdown)
     {
-        fFirstThread = !fTaken;
-        fTaken = true;
+        TRY_LOCK(cs_Shutdown, lockShutdown);
+        if (lockShutdown)
+        {
+            fFirstThread = !fTaken;
+            fTaken = true;
+        }
     }
     static bool fExit;
     if (fFirstThread)
@@ -153,11 +150,12 @@ bool AppInit2(int argc, char* argv[])
     // If Qt is used, parameters/bitcoin.conf are parsed in qt/bitcoin.cpp's main()
 #if !defined(QT_GUI)
     ParseParameters(argc, argv);
-    if (!ReadConfigFile(mapArgs, mapMultiArgs))
+    if (!boost::filesystem::is_directory(GetDataDir(false)))
     {
         fprintf(stderr, "Error: Specified directory does not exist\n");
         Shutdown(NULL);
     }
+    ReadConfigFile(mapArgs, mapMultiArgs);
 #endif
 
     if (mapArgs.count("-?") || mapArgs.count("--help"))
@@ -178,6 +176,7 @@ bool AppInit2(int argc, char* argv[])
             "  -splash          \t\t  " + _("Show splash screen on startup (default: 1)") + "\n" +
             "  -datadir=<dir>   \t\t  " + _("Specify data directory") + "\n" +
             "  -dbcache=<n>     \t\t  " + _("Set database cache size in megabytes (default: 25)") + "\n" +
+            "  -dblogsize=<n>   \t\t  " + _("Set database disk log size in megabytes (default: 100)") + "\n" +
             "  -timeout=<n>     \t  "   + _("Specify connection timeout (in milliseconds)") + "\n" +
             "  -proxy=<ip:port> \t  "   + _("Connect through socks4 proxy") + "\n" +
             "  -dns             \t  "   + _("Allow DNS lookups for addnode and connect") + "\n" +
@@ -201,6 +200,7 @@ bool AppInit2(int argc, char* argv[])
 #else
             "  -upnp            \t  "   + _("Use Universal Plug and Play to map the listening port (default: 0)") + "\n" +
 #endif
+            "  -detachdb        \t  "   + _("Detach block and address databases. Increases shutdown time (default: 0)") + "\n" +
 #endif
             "  -paytxfee=<amt>  \t  "   + _("Fee per KB to add to transactions you send") + "\n" +
 #ifdef QT_GUI
@@ -228,14 +228,12 @@ bool AppInit2(int argc, char* argv[])
             "  -checkblocks=<n> \t\t  " + _("How many blocks to check at startup (default: 2500, 0 = all)") + "\n" +
             "  -checklevel=<n>  \t\t  " + _("How thorough the block verification is (0-6, default: 1)") + "\n";
 
-#ifdef USE_SSL
         strUsage += string() +
             _("\nSSL options: (see the Bitcoin Wiki for SSL setup instructions)") + "\n" +
             "  -rpcssl                                \t  " + _("Use OpenSSL (https) for JSON-RPC connections") + "\n" +
             "  -rpcsslcertificatechainfile=<file.cert>\t  " + _("Server certificate file (default: server.cert)") + "\n" +
             "  -rpcsslprivatekeyfile=<file.pem>       \t  " + _("Server private key (default: server.pem)") + "\n" +
             "  -rpcsslciphers=<ciphers>               \t  " + _("Acceptable ciphers (default: TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!AH:!3DES:@STRENGTH)") + "\n";
-#endif
 
         strUsage += string() +
             "  -?               \t\t  " + _("This help message") + "\n";
@@ -244,7 +242,7 @@ bool AppInit2(int argc, char* argv[])
         strUsage.erase(std::remove(strUsage.begin(), strUsage.end(), '\t'), strUsage.end());
 #if defined(QT_GUI) && defined(WIN32)
         // On windows, show a message box, as there is no stderr
-        wxMessageBox(strUsage, "Usage");
+        ThreadSafeMessageBox(strUsage, _("Usage"), wxOK | wxMODAL);
 #else
         fprintf(stderr, "%s", strUsage.c_str());
 #endif
@@ -258,6 +256,7 @@ bool AppInit2(int argc, char* argv[])
     }
 
     fDebug = GetBoolArg("-debug");
+    fDetachDB = GetBoolArg("-detachdb", false);
 
 #if !defined(WIN32) && !defined(QT_GUI)
     fDaemon = GetBoolArg("-daemon");
@@ -312,11 +311,11 @@ bool AppInit2(int argc, char* argv[])
     }
 #endif
 
-    if (!fDebug && !pszSetDataDir[0])
+    if (!fDebug)
         ShrinkDebugFile();
     printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-    printf("Bitcoin version %s\n", FormatFullVersion().c_str());
-    printf("Default data directory %s\n", GetDefaultDataDir().c_str());
+    printf("Bitcoin version %s (%s)\n", FormatFullVersion().c_str(), CLIENT_DATE.c_str());
+    printf("Default data directory %s\n", GetDefaultDataDir().string().c_str());
 
     if (GetBoolArg("-loadblockindextest"))
     {
@@ -327,13 +326,13 @@ bool AppInit2(int argc, char* argv[])
     }
 
     // Make sure only a single bitcoin process is using the data directory.
-    string strLockFile = GetDataDir() + "/.lock";
-    FILE* file = fopen(strLockFile.c_str(), "a"); // empty lock file; created if it doesn't exist.
+    boost::filesystem::path pathLockFile = GetDataDir() / ".lock";
+    FILE* file = fopen(pathLockFile.string().c_str(), "a"); // empty lock file; created if it doesn't exist.
     if (file) fclose(file);
-    static boost::interprocess::file_lock lock(strLockFile.c_str());
+    static boost::interprocess::file_lock lock(pathLockFile.string().c_str());
     if (!lock.try_lock())
     {
-        wxMessageBox(strprintf(_("Cannot obtain a lock on data directory %s.  Bitcoin is probably already running."), GetDataDir().c_str()), "Bitcoin");
+        ThreadSafeMessageBox(strprintf(_("Cannot obtain a lock on data directory %s.  Bitcoin is probably already running."), GetDataDir().string().c_str()), _("Bitcoin"), wxOK|wxMODAL);
         return false;
     }
 
@@ -357,6 +356,15 @@ bool AppInit2(int argc, char* argv[])
     nStart = GetTimeMillis();
     if (!LoadBlockIndex())
         strErrors << _("Error loading blkindex.dat") << "\n";
+
+    // as LoadBlockIndex can take several minutes, it's possible the user
+    // requested to kill bitcoin-qt during the last operation. If so, exit.
+    // As the program has not fully started yet, Shutdown() is possibly overkill.
+    if (fRequestShutdown)
+    {
+        printf("Shutdown requested. Exiting.\n");
+        return false;
+    }
     printf(" block index %15"PRI64d"ms\n", GetTimeMillis() - nStart);
 
     InitMessage(_("Loading wallet..."));
@@ -375,7 +383,7 @@ bool AppInit2(int argc, char* argv[])
         {
             strErrors << _("Wallet needed to be rewritten: restart Bitcoin to complete") << "\n";
             printf("%s", strErrors.str().c_str());
-            wxMessageBox(strErrors.str(), "Bitcoin", wxOK | wxICON_ERROR);
+            ThreadSafeMessageBox(strErrors.str(), _("Bitcoin"), wxOK | wxICON_ERROR | wxMODAL);
             return false;
         }
         else
@@ -447,7 +455,7 @@ bool AppInit2(int argc, char* argv[])
 
     if (!strErrors.str().empty())
     {
-        wxMessageBox(strErrors.str(), "Bitcoin", wxOK | wxICON_ERROR);
+        ThreadSafeMessageBox(strErrors.str(), _("Bitcoin"), wxOK | wxICON_ERROR | wxMODAL);
         return false;
     }
 
@@ -503,7 +511,7 @@ bool AppInit2(int argc, char* argv[])
         addrProxy = CService(mapArgs["-proxy"], 9050);
         if (!addrProxy.IsValid())
         {
-            wxMessageBox(_("Invalid -proxy address"), "Bitcoin");
+            ThreadSafeMessageBox(_("Invalid -proxy address"), _("Bitcoin"), wxOK | wxMODAL);
             return false;
         }
     }
@@ -534,7 +542,7 @@ bool AppInit2(int argc, char* argv[])
         std::string strError;
         if (!BindListenPort(strError))
         {
-            wxMessageBox(strError, "Bitcoin");
+            ThreadSafeMessageBox(strError, _("Bitcoin"), wxOK | wxMODAL);
             return false;
         }
     }
@@ -554,11 +562,11 @@ bool AppInit2(int argc, char* argv[])
     {
         if (!ParseMoney(mapArgs["-paytxfee"], nTransactionFee))
         {
-            wxMessageBox(_("Invalid amount for -paytxfee=<amount>"), "Bitcoin");
+            ThreadSafeMessageBox(_("Invalid amount for -paytxfee=<amount>"), _("Bitcoin"), wxOK | wxMODAL);
             return false;
         }
         if (nTransactionFee > 0.25 * COIN)
-            wxMessageBox(_("Warning: -paytxfee is set very high.  This is the transaction fee you will pay if you send a transaction."), "Bitcoin", wxOK | wxICON_EXCLAMATION);
+            ThreadSafeMessageBox(_("Warning: -paytxfee is set very high.  This is the transaction fee you will pay if you send a transaction."), _("Bitcoin"), wxOK | wxICON_EXCLAMATION | wxMODAL);
     }
 
     //
@@ -570,14 +578,14 @@ bool AppInit2(int argc, char* argv[])
     RandAddSeedPerfmon();
 
     if (!CreateThread(StartNode, NULL))
-        wxMessageBox(_("Error: CreateThread(StartNode) failed"), "Bitcoin");
+        ThreadSafeMessageBox(_("Error: CreateThread(StartNode) failed"), _("Bitcoin"), wxOK | wxMODAL);
 
     if (fServer)
         CreateThread(ThreadRPCServer, NULL);
 
 #ifdef QT_GUI
-    if(GetStartOnSystemStartup())
-        SetStartOnSystemStartup(true); // Remove startup links to bitcoin-wx
+    if (GetStartOnSystemStartup())
+        SetStartOnSystemStartup(true); // Remove startup links
 #endif
 
 #if !defined(QT_GUI)
@@ -588,151 +596,3 @@ bool AppInit2(int argc, char* argv[])
     return true;
 }
 
-#ifdef WIN32
-string StartupShortcutPath()
-{
-    return MyGetSpecialFolderPath(CSIDL_STARTUP, true) + "\\Bitcoin.lnk";
-}
-
-bool GetStartOnSystemStartup()
-{
-    return filesystem::exists(StartupShortcutPath().c_str());
-}
-
-bool SetStartOnSystemStartup(bool fAutoStart)
-{
-    // If the shortcut exists already, remove it for updating
-    remove(StartupShortcutPath().c_str());
-
-    if (fAutoStart)
-    {
-        CoInitialize(NULL);
-
-        // Get a pointer to the IShellLink interface.
-        IShellLink* psl = NULL;
-        HRESULT hres = CoCreateInstance(CLSID_ShellLink, NULL,
-                                CLSCTX_INPROC_SERVER, IID_IShellLink,
-                                reinterpret_cast<void**>(&psl));
-
-        if (SUCCEEDED(hres))
-        {
-            // Get the current executable path
-            TCHAR pszExePath[MAX_PATH];
-            GetModuleFileName(NULL, pszExePath, sizeof(pszExePath));
-
-            TCHAR pszArgs[5] = TEXT("-min");
-
-            // Set the path to the shortcut target
-            psl->SetPath(pszExePath);
-            PathRemoveFileSpec(pszExePath);
-            psl->SetWorkingDirectory(pszExePath);
-            psl->SetShowCmd(SW_SHOWMINNOACTIVE);
-            psl->SetArguments(pszArgs);
-
-            // Query IShellLink for the IPersistFile interface for
-            // saving the shortcut in persistent storage.
-            IPersistFile* ppf = NULL;
-            hres = psl->QueryInterface(IID_IPersistFile,
-                                       reinterpret_cast<void**>(&ppf));
-            if (SUCCEEDED(hres))
-            {
-                WCHAR pwsz[MAX_PATH];
-                // Ensure that the string is ANSI.
-                MultiByteToWideChar(CP_ACP, 0, StartupShortcutPath().c_str(), -1, pwsz, MAX_PATH);
-                // Save the link by calling IPersistFile::Save.
-                hres = ppf->Save(pwsz, TRUE);
-                ppf->Release();
-                psl->Release();
-                CoUninitialize();
-                return true;
-            }
-            psl->Release();
-        }
-        CoUninitialize();
-        return false;
-    }
-    return true;
-}
-
-#elif defined(LINUX)
-
-// Follow the Desktop Application Autostart Spec:
-//  http://standards.freedesktop.org/autostart-spec/autostart-spec-latest.html
-
-boost::filesystem::path GetAutostartDir()
-{
-    namespace fs = boost::filesystem;
-
-    char* pszConfigHome = getenv("XDG_CONFIG_HOME");
-    if (pszConfigHome) return fs::path(pszConfigHome) / fs::path("autostart");
-    char* pszHome = getenv("HOME");
-    if (pszHome) return fs::path(pszHome) / fs::path(".config/autostart");
-    return fs::path();
-}
-
-boost::filesystem::path GetAutostartFilePath()
-{
-    return GetAutostartDir() / boost::filesystem::path("bitcoin.desktop");
-}
-
-bool GetStartOnSystemStartup()
-{
-    boost::filesystem::ifstream optionFile(GetAutostartFilePath());
-    if (!optionFile.good())
-        return false;
-    // Scan through file for "Hidden=true":
-    string line;
-    while (!optionFile.eof())
-    {
-        getline(optionFile, line);
-        if (line.find("Hidden") != string::npos &&
-            line.find("true") != string::npos)
-            return false;
-    }
-    optionFile.close();
-
-    return true;
-}
-
-bool SetStartOnSystemStartup(bool fAutoStart)
-{
-    if (!fAutoStart)
-    {
-#if defined(BOOST_FILESYSTEM_VERSION) && BOOST_FILESYSTEM_VERSION >= 3
-        unlink(GetAutostartFilePath().string().c_str());
-#else
-        unlink(GetAutostartFilePath().native_file_string().c_str());
-#endif
-    }
-    else
-    {
-        char pszExePath[MAX_PATH+1];
-        memset(pszExePath, 0, sizeof(pszExePath));
-        if (readlink("/proc/self/exe", pszExePath, sizeof(pszExePath)-1) == -1)
-            return false;
-
-        boost::filesystem::create_directories(GetAutostartDir());
-
-        boost::filesystem::ofstream optionFile(GetAutostartFilePath(), ios_base::out|ios_base::trunc);
-        if (!optionFile.good())
-            return false;
-        // Write a bitcoin.desktop file to the autostart directory:
-        optionFile << "[Desktop Entry]\n";
-        optionFile << "Type=Application\n";
-        optionFile << "Name=Bitcoin\n";
-        optionFile << "Exec=" << pszExePath << " -min\n";
-        optionFile << "Terminal=false\n";
-        optionFile << "Hidden=false\n";
-        optionFile.close();
-    }
-    return true;
-}
-#else
-
-// TODO: OSX startup stuff; see:
-// http://developer.apple.com/mac/library/documentation/MacOSX/Conceptual/BPSystemStartup/Articles/CustomLogin.html
-
-bool GetStartOnSystemStartup() { return false; }
-bool SetStartOnSystemStartup(bool fAutoStart) { return false; }
-
-#endif

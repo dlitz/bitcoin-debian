@@ -81,7 +81,7 @@ private:
     QAction *aboutAction;
     QAction *receiveCoinsAction;
     QAction *optionsAction;
-    QAction *openBitcoinAction;
+    QAction *toggleHideAction;
     QAction *exportAction;
     QAction *encryptWalletAction;
     QAction *backupWalletAction;
@@ -113,11 +113,9 @@ public slots:
        @see WalletModel::EncryptionStatus
     */
     void setEncryptionStatus(int status);
-    /** Set the status bar text if there are any warnings (removes sync progress bar if applicable) */
-    void refreshStatusBar();
 
     /** Notify the user of an error in the network or transaction handling code. */
-    void error(const QString &title, const QString &message);
+    void error(const QString &title, const QString &message, bool modal);
     /** Asks the user whether to pay the transaction fee or to cancel the transaction.
        It is currently not possible to pass a return value to another thread through
        BlockingQueuedConnection, so an indirected pointer is used.
@@ -127,7 +125,7 @@ public slots:
       @param[out] payFee            true to pay the fee, false to not pay the fee
     */
     void askFee(qint64 nFeeRequired, bool *payFee);
-    void handleURL(QString strURL);
+    void handleURI(QString strURI);
 
     void gotoMessagePage();
     void gotoMessagePage(QString);
@@ -168,6 +166,8 @@ private slots:
 
     /** Show window if hidden, unminimize when minimized */
     void showNormalIfMinimized();
+    /** Hide window if visible, show if hidden */
+    void toggleHidden();
 };
 
 #endif

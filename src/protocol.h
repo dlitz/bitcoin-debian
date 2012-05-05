@@ -12,7 +12,6 @@
 
 #include "serialize.h"
 #include "netbase.h"
-#include "util.h"
 #include <string>
 #include "uint256.h"
 
@@ -79,9 +78,10 @@ class CAddress : public CService
              if (fRead)
                  pthis->Init();
              if (nType & SER_DISK)
-             READWRITE(nVersion);
-             if ((nType & SER_DISK) || (nVersion >= 31402 && !(nType & SER_GETHASH)))
-             READWRITE(nTime);
+                 READWRITE(nVersion);
+             if ((nType & SER_DISK) ||
+                 (nVersion >= CADDR_TIME_VERSION && !(nType & SER_GETHASH)))
+                 READWRITE(nTime);
              READWRITE(nServices);
              READWRITE(*pip);
             )
