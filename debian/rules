@@ -25,7 +25,7 @@ DEB_UPSTREAM_URL = http://githubredir.debian.net/github/bitcoin/bitcoin
 DEB_UPSTREAM_TARBALL_BASENAME = v$(DEB_UPSTREAM_TARBALL_VERSION)
 DEB_UPSTREAM_TARBALL_BASENAME_MANGLE = s/~(alpha|beta|rc)/\1/
 DEB_UPSTREAM_WGET_OPTS += --no-check-certificate
-DEB_UPSTREAM_TARBALL_MD5 = 9657ae0c943f042ba01bce053af238ad
+DEB_UPSTREAM_TARBALL_MD5 = ed7288a032e51622fade49d00324bbdb
 
 # Ignore graphics and .mo files in addition to the default debian files
 DEB_COPYRIGHT_CHECK_IGNORE_REGEX = ^(doc/bitcoin_logo_doxygen\.png|src/qt/res/icons/.*\.png|contrib/Bitcoin.app/Contents/Resources/BitcoinAppIcon\.icns|contrib/gitian-downloader/sipa-key\.pgp|debian/(changelog|copyright(|_hints|_newhints)))$
