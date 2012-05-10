@@ -23,7 +23,7 @@ Vcs-Git: git://git.debian.org/git/collab-maint/bitcoin
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=collab-maint/bitcoin.git
 
 Package: bitcoind
-Architecture: any
+Architecture: any-alpha any-amd64 any-armel any-armhf any-i386 any-ia64 any-mipsel any-sh4
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Suggests: ${cdbs:Suggests}
 Description: peer-to-peer network based digital currency - daemon

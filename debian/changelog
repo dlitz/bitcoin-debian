@@ -2,7 +2,14 @@ bitcoin (0.6.2.1-1) unstable; urgency=low
 
   * New upstream release.
 
- -- Jonas Smedegaard <dr@jones.dk>  Thu, 10 May 2012 11:41:58 +0200
+  * Add -fpermissive to CXXFLAGS to work around build failure with gcc
+    4.7.
+    Closes: bug#667114. Thanks to Matthias Klose.
+  * Only build on little-endian architectures: Upstream code does not
+    support big-endian.
+    Closes: bug#668868, #668864. Thanks to Dwayne C. Litzenberger.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Thu, 10 May 2012 14:09:46 +0200
 
 bitcoin (0.6.1-1) unstable; urgency=low
 
