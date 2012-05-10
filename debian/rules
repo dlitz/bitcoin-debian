@@ -38,6 +38,9 @@ DEB_MAKE_CHECK_TARGET = test_bitcoin
 build/bitcoind::
 	$(if $(filter nocheck,$(DEB_BUILD_OPTIONS)),,src/test_bitcoin)
 
+# work around build failure with gcc 4.7
+CXXFLAGS += -fpermissive
+
 # Readd default flags
 CXXFLAGS += -DNOPCH -DUSE_SSL
 #CXXFLAGS += -Wno-invalid-offsetof -Wformat
