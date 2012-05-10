@@ -1,3 +1,10 @@
+bitcoin (0.6.2.1-2) unstable; urgency=low
+
+  * Fix build on wildcard any-arm (not bogus any-armel any-armhf).
+    Really closes: bug#668868. Thanks to Jakub Wilk.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Thu, 10 May 2012 22:11:10 +0200
+
 bitcoin (0.6.2.1-1) unstable; urgency=low
 
   * New upstream release.
