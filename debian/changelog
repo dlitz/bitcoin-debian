@@ -1,3 +1,9 @@
+bitcoin (0.6.2.2-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Jonas Smedegaard <dr@jones.dk>  Sun, 13 May 2012 13:40:23 +0200
+
 bitcoin (0.6.2.1-2) unstable; urgency=low
 
   * Fix build on wildcard any-arm (not bogus any-armel any-armhf).
